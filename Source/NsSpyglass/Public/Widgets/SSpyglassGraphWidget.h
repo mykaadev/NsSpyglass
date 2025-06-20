@@ -8,6 +8,7 @@ struct FPluginNode
     FString Name;
     FVector2D Position;
     TArray<FString> Dependencies;
+    bool bIsEngine = false;
 };
 
 class SSpyglassGraphWidget : public SCompoundWidget

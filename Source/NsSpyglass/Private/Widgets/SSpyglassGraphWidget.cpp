@@ -12,7 +12,7 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     Nodes.Reset();
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
-    const float Radius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.4f;
+    const float BaseRadius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.15f;
     const FVector2D Center = ViewSize * 0.5f;
 
     TArray<TSharedRef<IPlugin>> EnginePlugins;
@@ -35,14 +35,20 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     RootNode.Position = Center;
     Nodes.Add(RootNode);
 
-    auto AddPlugins = [&](const TArray<TSharedRef<IPlugin>>& PluginList, float StartAngle, float EndAngle)
+    auto AddPlugins = [&](TArray<TSharedRef<IPlugin>>& PluginList, float StartAngle, float EndAngle, bool bEngine)
     {
+        PluginList.Sort([](const TSharedRef<IPlugin>& A, const TSharedRef<IPlugin>& B)
+        {
+            return A->GetDescriptor().Plugins.Num() < B->GetDescriptor().Plugins.Num();
+        });
+
         for (int32 i = 0; i < PluginList.Num(); ++i)
         {
             const TSharedRef<IPlugin>& Plugin = PluginList[i];
 
             FPluginNode Node;
             Node.Name = Plugin->GetName();
+            Node.bIsEngine = bEngine;
             const FPluginDescriptor& Desc = Plugin->GetDescriptor();
 
             for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
@@ -55,14 +61,15 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
             float Alpha = PluginList.Num() > 1 ? static_cast<float>(i) / (PluginList.Num() - 1) : 0.5f;
             float Angle = FMath::Lerp(StartAngle, EndAngle, Alpha);
-            Node.Position = Center + FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
+            float NodeRadius = BaseRadius + Node.Dependencies.Num() * 40.f;
+            Node.Position = Center + FVector2D(FMath::Cos(Angle) * NodeRadius, FMath::Sin(Angle) * NodeRadius);
             Node.Dependencies.Add(RootNode.Name);
             Nodes.Add(Node);
         }
     };
 
-    AddPlugins(EnginePlugins, PI + PI / 3.f, PI * 2.f - PI / 3.f); // left side
-    AddPlugins(OtherPlugins, -PI / 3.f, PI / 3.f);                   // right side
+    AddPlugins(EnginePlugins, PI + PI / 3.f, PI * 2.f - PI / 3.f, true); // left side
+    AddPlugins(OtherPlugins, -PI / 3.f, PI / 3.f, false);               // right side
 }
 
 int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
@@ -94,20 +101,28 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
     // Draw nodes
     for (const FPluginNode& Node : Nodes)
     {
-        FVector2D DrawPos = Center + ViewOffset + (Node.Position - Center) * ZoomAmount - FVector2D(25.f, 25.f);
+        float Size = Node.Name == TEXT("Root") ? 60.f : 50.f;
+        FVector2D DrawPos = Center + ViewOffset + (Node.Position - Center) * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
+
+        FLinearColor BoxColor = Node.bIsEngine ? FLinearColor(0.1f, 0.6f, 0.1f) : FLinearColor(0.1f, 0.4f, 0.8f);
+        if (Node.Name == TEXT("Root"))
+        {
+            BoxColor = FLinearColor(0.8f, 0.2f, 0.2f);
+        }
+
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId + 1,
-            AllottedGeometry.ToPaintGeometry(FVector2D(50.f, 50.f), FSlateLayoutTransform(DrawPos)),
+            AllottedGeometry.ToPaintGeometry(FVector2D(Size, Size), FSlateLayoutTransform(DrawPos)),
             FCoreStyle::Get().GetBrush("WhiteBrush"),
             ESlateDrawEffect::None,
-            FLinearColor::Blue
+            BoxColor
         );
 
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId + 2,
-            AllottedGeometry.ToPaintGeometry(FVector2D(40.f,20.f), FSlateLayoutTransform(DrawPos + FVector2D(5.f, 15.f))),
+            AllottedGeometry.ToPaintGeometry(FVector2D(Size - 10.f, 20.f), FSlateLayoutTransform(DrawPos + FVector2D(5.f, Size * 0.5f - 10.f))),
             Node.Name,
             FCoreStyle::Get().GetFontStyle("NormalFont"),
             ESlateDrawEffect::None,
@@ -154,7 +169,7 @@ FReply SSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const FPo
 
     const float OldZoom = ZoomAmount;
     ZoomAmount *= FMath::Pow(1.1f, MouseEvent.GetWheelDelta());
-    ZoomAmount = FMath::Clamp(ZoomAmount, 0.2f, 5.f);
+    ZoomAmount = FMath::Clamp(ZoomAmount, 0.2f, 10.f);
 
     const float ZoomRatio = ZoomAmount / OldZoom;
     ViewOffset = LocalMousePos - Center - (LocalMousePos - Center - ViewOffset) * ZoomRatio;
