@@ -75,13 +75,15 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
             {
                 if (int32* DepIdx = NameToIndex.Find(Ref.Name))
                 {
-                    Nodes[i].Links.Add(*DepIdx);
+                    Nodes[i].Links.AddUnique(*DepIdx);
+                    Nodes[*DepIdx].Links.AddUnique(i); // treat links as undirected
                 }
             }
         }
 
         // Link to the root so everything stays connected
-        Nodes[i].Links.Add(RootIndex);
+        Nodes[i].Links.AddUnique(RootIndex);
+        Nodes[RootIndex].Links.AddUnique(i);
     }
 
     // Arrange nodes in a circle to avoid overlapping at the origin
@@ -427,9 +429,9 @@ namespace
         {
             for (int32 Link : Nodes[i].Links)
             {
-                if (Link <= i || !Nodes.IsValidIndex(Link))
+                if (!Nodes.IsValidIndex(Link))
                 {
-                    continue; // handle each edge once
+                    continue;
                 }
 
                 FVector2D Delta = Nodes[i].Position - Nodes[Link].Position;
@@ -453,7 +455,7 @@ namespace
             Displacement[i] -= Nodes[i].Position * Gravity * Mass[i];
         }
 
-        const float Step = DeltaTime * 0.1f;
+        const float Step = DeltaTime * 5.f;
         for (int32 i = 0; i < Num; ++i)
         {
             if (i == RootIndex)
