@@ -4,7 +4,7 @@
 
 UNsSpyglassSettings::UNsSpyglassSettings()
        : Repulsion(50000.f)
-       , SpringLength(150.f)
+    , SpringLength(80.f)
        , SpringStiffness(0.5f)
        , MaxLinkDistance(500.f)
        , CenterForce(50.f)

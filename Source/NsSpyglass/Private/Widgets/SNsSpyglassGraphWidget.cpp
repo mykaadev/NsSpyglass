@@ -285,14 +285,14 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         const FLinearColor OutlineColor = bOutlined ? FLinearColor(1.f, 0.5f, 0.f) : FLinearColor::Transparent;
         const float OutlineThickness = bOutlined ? 2.f : 0.f;
 
-        FSlateRoundedBoxBrush CircleBrush(BoxColor, Size * 0.5f, OutlineColor, OutlineThickness);
+        FSlateRoundedBoxBrush CircleBrush(FLinearColor::White, Size * 0.5f, OutlineColor, OutlineThickness);
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId + 1,
             AllottedGeometry.ToPaintGeometry(FVector2D(Size, Size), FSlateLayoutTransform(DrawPos)),
             &CircleBrush,
             ESlateDrawEffect::None,
-            FLinearColor::White
+            BoxColor
         );
 
         const FSlateFontInfo Font = FCoreStyle::Get().GetFontStyle("NormalFont");
