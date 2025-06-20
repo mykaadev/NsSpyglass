@@ -7,6 +7,7 @@ UNsSpyglassSettings::UNsSpyglassSettings()
        , SpringLength(150.f)
        , SpringStiffness(0.5f)
        , MaxLinkDistance(500.f)
+       , CenterForce(50.f)
    {}
 
 UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()

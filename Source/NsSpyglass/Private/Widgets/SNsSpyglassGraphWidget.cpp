@@ -437,11 +437,17 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
     const float SpringLength = Settings->SpringLength;
     const float SpringStiffness = Settings->SpringStiffness;
     const float MaxLinkDistance = Settings->MaxLinkDistance;
+    const float CenterForce = Settings->CenterForce;
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         for (int32 j = i + 1; j < Nodes.Num(); ++j)
         {
+            if (Nodes[i].Links.Contains(j) || Nodes[j].Links.Contains(i))
+            {
+                continue;
+            }
+
             FVector2D Delta = Nodes[j].Position - Nodes[i].Position;
             const float DistSq = FMath::Max(Delta.SizeSquared(), 1.f);
             const FVector2D Dir = Delta / FMath::Sqrt(DistSq);
@@ -467,6 +473,11 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
             Forces[i] += Spring;
             Forces[Link] -= Spring;
         }
+    }
+
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        Forces[i] += -Nodes[i].Position * CenterForce;
     }
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
