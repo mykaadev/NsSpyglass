@@ -76,7 +76,10 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
                 if (int32* DepIdx = NameToIndex.Find(Ref.Name))
                 {
                     Nodes[i].Links.AddUnique(*DepIdx);
-                    Nodes[*DepIdx].Links.AddUnique(i); // treat links as undirected
+                    Nodes[*DepIdx].Links.AddUnique(i); // undirected for layout
+
+                    // Store directed dependency
+                    Nodes[i].Dependencies.AddUnique(*DepIdx);
                 }
             }
         }
@@ -128,41 +131,30 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     {
         TArray<int32> Stack;
         TSet<int32> Visited;
-        Highlight.Add(HoveredNode);
-        Stack.Add(HoveredNode);
-        Visited.Add(HoveredNode);
+        Stack.Append(Nodes[HoveredNode].Dependencies);
+        for (int32 Dep : Nodes[HoveredNode].Dependencies)
+        {
+            Highlight.Add(Dep);
+            Visited.Add(Dep);
+        }
 
         while (Stack.Num() > 0)
         {
             int32 Cur = Stack.Pop();
 
-            if (Cur == RootIndex)
+            for (int32 Dep : Nodes[Cur].Dependencies)
             {
-                continue; // do not traverse beyond the root
-            }
-
-            // Forward links (dependencies)
-            for (int32 Link : Nodes[Cur].Links)
-            {
-                if (!Visited.Contains(Link))
+                if (!Visited.Contains(Dep))
                 {
-                    Highlight.Add(Link);
-                    Visited.Add(Link);
-                    Stack.Add(Link);
-                }
-            }
-
-            // Reverse links (dependents)
-            for (int32 i = 0; i < Nodes.Num(); ++i)
-            {
-                if (Nodes[i].Links.Contains(Cur) && !Visited.Contains(i))
-                {
-                    Highlight.Add(i);
-                    Visited.Add(i);
-                    Stack.Add(i);
+                    Highlight.Add(Dep);
+                    Visited.Add(Dep);
+                    Stack.Add(Dep);
                 }
             }
         }
+
+        // ensure hovered node itself gets highlighted
+        Highlight.Add(HoveredNode);
     }
 
     // Draw edges with arrowheads pointing to dependencies
@@ -173,7 +165,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         const FVector2D NodePos = Center + ViewOffset + Node.Position * ZoomAmount;
         const float NodeRadius = ((Node.Name == TEXT("Root")) ? 60.f : 40.f) * ZoomScale * 0.5f;
 
-        for (int32 Link : Node.Links)
+        for (int32 Link : Node.Dependencies)
         {
             if (!Nodes.IsValidIndex(Link) || i == Link)
             {
@@ -190,23 +182,20 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const FVector2D Start = NodePos + Dir * NodeRadius;
             const FVector2D End = DepPos - Dir * DepRadius;
 
-            const bool bDirectHover = HoveredNode != INDEX_NONE && (i == HoveredNode || Link == HoveredNode);
+            const bool bHighlighted = HoveredNode != INDEX_NONE && Highlight.Contains(i) && Highlight.Contains(Link);
 
             FLinearColor LineColor = FLinearColor::Gray;
             float Thickness = 1.f;
 
-            if (HoveredNode != INDEX_NONE)
+            if (bHighlighted)
             {
-                if (bDirectHover)
-                {
-                    LineColor = Nodes[HoveredNode].Color;
-                    LineColor.A = 1.f;
-                    Thickness = 3.f;
-                }
-                else
-                {
-                    LineColor.A = 0.1f;
-                }
+                LineColor = Nodes[i].Color;
+                LineColor.A = 1.f;
+                Thickness = 2.f;
+            }
+            else
+            {
+                LineColor.A = 0.05f;
             }
 
             // Line body
@@ -215,9 +204,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
             // Arrowhead uses color of dependency
             FLinearColor ArrowColor = Nodes[Link].Color;
-            if (HoveredNode != INDEX_NONE && !bDirectHover)
+            if (!bHighlighted)
             {
-                ArrowColor.A = 0.1f;
+                ArrowColor.A = 0.05f;
             }
 
             const float ArrowSize = 8.f * ZoomScale;

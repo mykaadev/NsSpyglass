@@ -15,8 +15,11 @@ struct FPluginNode
     /** Current position relative to the center of the view. */
     FVector2D Position = FVector2D::ZeroVector;
 
-    /** Indices of linked plugins. */
+    /** Indices of linked plugins used by the layout. */
     TArray<int32> Links;
+
+    /** Directed dependencies for this plugin. */
+    TArray<int32> Dependencies;
 
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
