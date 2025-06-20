@@ -1,5 +1,5 @@
 #include "NsSpyglass.h"
-#include "Widgets/SSpyglassGraphWidget.h"
+#include "Widgets/SNsSpyglassGraphWidget.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -7,7 +7,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Settings/SpyglassSettings.h"
+#include "Settings/NsSpyglassSettings.h"
+#include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
@@ -44,27 +45,31 @@ void FNsSpyglassModule::ShutdownModule()
 /** Create the main plugin tab with the graph widget and parameter controls. */
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
-    UNsSpyglassSettings* Settings = const_cast<UNsSpyglassSettings*>(UNsSpyglassSettings::Get());
+    UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
 
-    TSharedPtr<SSpyglassGraphWidget> GraphWidget;
+    TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
 
     // Helper that binds a slider to a settings value
-    auto Slider = [](float& Value, float Max, UNsSpyglassSettings* InSettings)
+    auto Slider = [](float& Value, const float Min, const float Max, UNsSpyglassSettings* InSettings)
     {
-        return SNew(SSlider)
-            .Value(Value / Max)
-            .OnValueChanged_Lambda([InSettings, Max, &Value](float V)
-            {
-                Value = V * Max;
-                InSettings->SaveConfig();
-            });
+        return SNew(SSpinBox<float>)
+        .Value(Value / Max)
+        .MaxValue(Max)
+        .MinValue(Min)
+        .MinSliderValue(Min)
+        .MaxSliderValue(Max)
+        .OnValueChanged_Lambda([InSettings, Max, &Value](float V)
+        {
+            Value = V;
+            InSettings->SaveConfig();
+        });
     };
 
     // Limits for the slider UI
-    const float MaxRepulsion = 500000.f;
-    const float MaxSpringLength = 300.f;
+    const float MaxRepulsion = 50000.f;
+    const float MaxSpringLength = 500.f;
     const float MaxStiffness = 1.f;
-    const float MaxLinkDist = 600.f;
+    const float MaxLinkDist = 1000.f;
 
     return SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
@@ -74,23 +79,40 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             [
                 SNew(SVerticalBox)
                 + SVerticalBox::Slot().AutoHeight()
-                [ SNew(STextBlock).Text(FText::FromString("Repulsion")) ]
+                [
+                    SNew(STextBlock).Text(FText::FromString("Repulsion"))
+                ]
                 + SVerticalBox::Slot().AutoHeight()
-                [ Slider(Settings->Repulsion, MaxRepulsion, Settings) ]
+                [
+                    Slider(Settings->Repulsion, 1.f, MaxRepulsion, Settings)
+                ]
                 + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [ SNew(STextBlock).Text(FText::FromString("Spring Length")) ]
+                [
+                    SNew(STextBlock).Text(FText::FromString("Spring Length"))
+                ]
                 + SVerticalBox::Slot().AutoHeight()
-                [ Slider(Settings->SpringLength, MaxSpringLength, Settings) ]
+                [
+                    Slider(Settings->SpringLength, 1.f, MaxSpringLength, Settings)
+                ]
                 + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [ SNew(STextBlock).Text(FText::FromString("Spring Stiffness")) ]
+                [
+                    SNew(STextBlock).Text(FText::FromString("Spring Stiffness"))
+                ]
                 + SVerticalBox::Slot().AutoHeight()
-                [ Slider(Settings->SpringStiffness, MaxStiffness, Settings) ]
+                [
+                    Slider(Settings->SpringStiffness, 0.f, MaxStiffness, Settings)
+                ]
                 + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [ SNew(STextBlock).Text(FText::FromString("Max Link Distance")) ]
+                [
+                    SNew(STextBlock).Text(FText::FromString("Max Link Distance"))
+                ]
                 + SVerticalBox::Slot().AutoHeight()
-                [ Slider(Settings->MaxLinkDistance, MaxLinkDist, Settings) ]
+                [
+                    Slider(Settings->MaxLinkDistance, 1.f, MaxLinkDist, Settings)
+                ]
                 + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,10,0,0))
-                [ SNew(SButton)
+                [
+                    SNew(SButton)
                     .Text(FText::FromString("Reset"))
                     .OnClicked_Lambda([&GraphWidget]()
                     {
@@ -104,7 +126,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             ]
             + SHorizontalBox::Slot().FillWidth(1.f)
             [
-                SAssignNew(GraphWidget, SSpyglassGraphWidget).Settings(Settings)
+                SAssignNew(GraphWidget, SNsSpyglassGraphWidget).Settings(Settings)
             ]
         ];
 }
