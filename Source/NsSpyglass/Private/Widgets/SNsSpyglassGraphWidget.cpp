@@ -27,12 +27,14 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
     TMap<FString, int32> NameToIndex;
+    TMap<FString, FLinearColor> CategoryColors;
 
     // Root node stays in the middle
     FPluginNode RootNode;
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
     RootNode.bFixed = true;
+    RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f);
     RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
 
@@ -45,6 +47,21 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         Node.Name = Plugin->GetName();
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
         Node.Position = FVector2D(RandVector.X, RandVector.Y);
+
+        const FPluginDescriptor& Desc = Plugin->GetDescriptor();
+        const FString Category = Desc.Category.IsEmpty() ? TEXT("Misc") : Desc.Category;
+
+        FLinearColor* Existing = CategoryColors.Find(Category);
+        if (!Existing)
+        {
+            const int32 Index = CategoryColors.Num();
+            const float Hue = FMath::Fmod(static_cast<float>(Index) * 50.f, 360.f);
+            FLinearColor NewColor = FLinearColor::MakeFromHSV8(static_cast<uint8>(Hue), 160, 255);
+            CategoryColors.Add(Category, NewColor);
+            Existing = CategoryColors.Find(Category);
+        }
+        Node.Color = *Existing;
+
         int32 Idx = Nodes.Add(Node);
         NameToIndex.Add(Node.Name, Idx);
     }
@@ -225,12 +242,12 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         const float Size = BaseSize * ZoomScale;
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 
-        FLinearColor BoxColor = Node.bIsEngine ? FLinearColor(0.1f, 0.6f, 0.1f) : FLinearColor(0.1f, 0.4f, 0.8f);
-        if (Node.Name == TEXT("Root"))
+        FLinearColor BoxColor = Node.Color;
+        if (Node.bIsEngine && Node.Name != TEXT("Root"))
         {
-            BoxColor = FLinearColor(0.8f, 0.2f, 0.2f);
+            BoxColor = FLinearColor::LerpUsingHSV(BoxColor, FLinearColor::White, 0.3f);
         }
-        else if (HoveredNode != INDEX_NONE && !Highlight.Contains(i))
+        if (HoveredNode != INDEX_NONE && !Highlight.Contains(i))
         {
             BoxColor.A = 0.2f;
         }

@@ -23,6 +23,9 @@ struct FPluginNode
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
 
+    /** Color assigned to this node's group. */
+    FLinearColor Color = FLinearColor::White;
+
     /** When true, the node will not move during simulation. */
     bool bFixed = false;
 };
