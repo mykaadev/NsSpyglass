@@ -34,7 +34,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
     RootNode.bFixed = true;
-    RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f);
+    RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.7f);
     RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
 
@@ -57,10 +57,12 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
             const int32 Index = CategoryColors.Num();
             const float Hue = FMath::Fmod(static_cast<float>(Index) * 50.f, 360.f);
             FLinearColor NewColor = FLinearColor::MakeFromHSV8(static_cast<uint8>(Hue), 160, 255);
+            NewColor.A = 0.7f;
             CategoryColors.Add(Category, NewColor);
             Existing = CategoryColors.Find(Category);
         }
         Node.Color = *Existing;
+        Node.Color.A = 0.7f;
 
         int32 Idx = Nodes.Add(Node);
         NameToIndex.Add(Node.Name, Idx);
@@ -274,7 +276,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         FLinearColor BoxColor = Node.Color;
         if (Node.bIsEngine && Node.Name != TEXT("Root"))
         {
-            BoxColor = FLinearColor::LerpUsingHSV(BoxColor, FLinearColor::White, 0.3f);
+            FLinearColor LerpColor = FLinearColor::LerpUsingHSV(BoxColor, FLinearColor::White, 0.3f);
+            LerpColor.A = BoxColor.A;
+            BoxColor = LerpColor;
         }
         if (HoveredNode != INDEX_NONE && !Highlight.Contains(i))
         {
