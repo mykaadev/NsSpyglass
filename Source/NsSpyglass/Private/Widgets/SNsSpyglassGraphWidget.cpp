@@ -84,6 +84,17 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         Nodes[i].Links.Add(RootIndex);
     }
 
+    // Arrange nodes in a circle to avoid overlapping at the origin
+    if (Nodes.Num() > 1)
+    {
+        const float Radius = 200.f;
+        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - 1);
+        for (int32 i = 1; i < Nodes.Num(); ++i)
+        {
+            const float Angle = Step * static_cast<float>(i - 1);
+            Nodes[i].Position = FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
+        }
+    }
 }
 
 int32 SNsSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const
@@ -398,7 +409,12 @@ namespace
             for (int32 j = i + 1; j < Num; ++j)
             {
                 FVector2D Delta = Nodes[i].Position - Nodes[j].Position;
-                const float DistSqr = FMath::Max(Delta.SizeSquared(), 1.f);
+                float DistSqr = Delta.SizeSquared();
+                if (DistSqr < KINDA_SMALL_NUMBER)
+                {
+                    Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
+                    DistSqr = KINDA_SMALL_NUMBER;
+                }
                 Delta /= FMath::Sqrt(DistSqr);
                 const float Force = Repulsion * Mass[i] * Mass[j] / DistSqr;
                 Displacement[i] += Delta * Force;
@@ -417,7 +433,12 @@ namespace
                 }
 
                 FVector2D Delta = Nodes[i].Position - Nodes[Link].Position;
-                const float Dist = FMath::Max(Delta.Size(), 1.f);
+                float Dist = Delta.Size();
+                if (Dist < KINDA_SMALL_NUMBER)
+                {
+                    Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
+                    Dist = KINDA_SMALL_NUMBER;
+                }
                 Delta /= Dist;
 
                 // Attraction is proportional to distance
@@ -432,7 +453,7 @@ namespace
             Displacement[i] -= Nodes[i].Position * Gravity * Mass[i];
         }
 
-        const float Step = DeltaTime * 0.01f;
+        const float Step = DeltaTime * 0.1f;
         for (int32 i = 0; i < Num; ++i)
         {
             if (i == RootIndex)
