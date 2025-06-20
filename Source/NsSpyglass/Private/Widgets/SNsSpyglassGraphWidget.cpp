@@ -46,6 +46,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         const FVector RandVector = Rand.VRand() * 200.f;
 
         Node.Name = Plugin->GetName();
+        Node.Plugin = Plugin;
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
         Node.Position = FVector2D(RandVector.X, RandVector.Y);
 
@@ -393,14 +394,20 @@ FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FP
         return FReply::Handled();
     }
 
-    HoveredNode = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
-    if (HoveredNode != INDEX_NONE)
+    const int32 NewHover = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
+    if (HoveredNode != NewHover)
     {
-        SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
-    }
-    else
-    {
-        SetToolTipText(FText());
+        HoveredNode = NewHover;
+        if (HoveredNode != INDEX_NONE)
+        {
+            SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
+            OnNodeHovered.ExecuteIfBound(Nodes[HoveredNode].Plugin);
+        }
+        else
+        {
+            SetToolTipText(FText());
+            OnNodeHovered.ExecuteIfBound(nullptr);
+        }
     }
 
     return FReply::Unhandled();
@@ -431,6 +438,11 @@ void SNsSpyglassGraphWidget::RebuildGraph()
 {
     BuildNodes(FVector2D(960.f, 540.f));
     RecenterView();
+}
+
+void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
+{
+    OnNodeHovered = InDelegate;
 }
 
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
