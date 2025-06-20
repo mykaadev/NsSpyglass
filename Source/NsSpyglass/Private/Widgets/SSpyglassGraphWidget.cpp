@@ -12,28 +12,57 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     Nodes.Reset();
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
-    const float Radius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.45f;
+    const float Radius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.4f;
     const FVector2D Center = ViewSize * 0.5f;
-    int32 Index = 0;
+
+    TArray<TSharedRef<IPlugin>> EnginePlugins;
+    TArray<TSharedRef<IPlugin>> OtherPlugins;
+
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
     {
-        FPluginNode Node;
-        Node.Name = Plugin->GetName();
-        const FPluginDescriptor& Desc = Plugin->GetDescriptor();
-
-        for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
+        if (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine)
         {
-            if (Ref.bEnabled)
-            {
-                Node.Dependencies.Add(Ref.Name);
-            }
+            EnginePlugins.Add(Plugin);
         }
-
-        const float Angle = (2.f * PI) * Index / Plugins.Num();
-        Node.Position = Center + FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
-        Nodes.Add(Node);
-        ++Index;
+        else
+        {
+            OtherPlugins.Add(Plugin);
+        }
     }
+
+    FPluginNode RootNode;
+    RootNode.Name = TEXT("Root");
+    RootNode.Position = Center;
+    Nodes.Add(RootNode);
+
+    auto AddPlugins = [&](const TArray<TSharedRef<IPlugin>>& PluginList, float StartAngle, float EndAngle)
+    {
+        for (int32 i = 0; i < PluginList.Num(); ++i)
+        {
+            const TSharedRef<IPlugin>& Plugin = PluginList[i];
+
+            FPluginNode Node;
+            Node.Name = Plugin->GetName();
+            const FPluginDescriptor& Desc = Plugin->GetDescriptor();
+
+            for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
+            {
+                if (Ref.bEnabled)
+                {
+                    Node.Dependencies.Add(Ref.Name);
+                }
+            }
+
+            float Alpha = PluginList.Num() > 1 ? static_cast<float>(i) / (PluginList.Num() - 1) : 0.5f;
+            float Angle = FMath::Lerp(StartAngle, EndAngle, Alpha);
+            Node.Position = Center + FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
+            Node.Dependencies.Add(RootNode.Name);
+            Nodes.Add(Node);
+        }
+    };
+
+    AddPlugins(EnginePlugins, PI + PI / 3.f, PI * 2.f - PI / 3.f); // left side
+    AddPlugins(OtherPlugins, -PI / 3.f, PI / 3.f);                   // right side
 }
 
 int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
@@ -120,8 +149,16 @@ FReply SSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FPoi
 
 FReply SSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+    const FVector2D LocalMousePos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+    const FVector2D Center = MyGeometry.GetLocalSize() * 0.5f;
+
+    const float OldZoom = ZoomAmount;
     ZoomAmount *= FMath::Pow(1.1f, MouseEvent.GetWheelDelta());
     ZoomAmount = FMath::Clamp(ZoomAmount, 0.2f, 5.f);
+
+    const float ZoomRatio = ZoomAmount / OldZoom;
+    ViewOffset = LocalMousePos - Center - (LocalMousePos - Center - ViewOffset) * ZoomRatio;
+
     return FReply::Handled();
 }
 
