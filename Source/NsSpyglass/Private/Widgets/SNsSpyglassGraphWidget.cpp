@@ -465,93 +465,78 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
         return;
     }
 
+    const UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
+
+    // ForceAtlas2 parameters derived from existing settings
+    const float Kr = Settings->Repulsion;             // Repulsion scaling
+    const float Ka = Settings->SpringStiffness;       // Attraction strength
+    const float IdealDist = Settings->SpringLength;   // Desired link distance
+    const float Gravity = Settings->CenterForce;      // Pull to origin
+
+    // Precompute node masses based on degree
+    TArray<float> Mass;
+    Mass.SetNumUninitialized(Nodes.Num());
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        Mass[i] = 1.f + Nodes[i].Links.Num();
+    }
+
     TArray<FVector2D> Forces;
     Forces.Init(FVector2D::ZeroVector, Nodes.Num());
 
-    const UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
-    const float Repulsion = Settings->Repulsion;
-    const float SpringLength = Settings->SpringLength;
-    const float SpringStiffness = Settings->SpringStiffness;
-    const float MaxLinkDistance = Settings->MaxLinkDistance;
-    const float CenterForce = Settings->CenterForce;
-
+    // Repulsion
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         for (int32 j = i + 1; j < Nodes.Num(); ++j)
         {
-            if (Nodes[i].Links.Contains(j) || Nodes[j].Links.Contains(i))
-            {
-                continue;
-            }
-
             FVector2D Delta = Nodes[j].Position - Nodes[i].Position;
             const float DistSq = FMath::Max(Delta.SizeSquared(), 1.f);
             const FVector2D Dir = Delta / FMath::Sqrt(DistSq);
-            const FVector2D Rep = Dir * (Repulsion / DistSq);
+            const float Force = Kr * Mass[i] * Mass[j] / DistSq;
+            const FVector2D Rep = Dir * Force;
             Forces[i] -= Rep;
             Forces[j] += Rep;
         }
     }
 
+    // Attraction along edges
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         for (const int32 Link : Nodes[i].Links)
         {
-            if (Link < 0 || Link >= Nodes.Num() || Link <= i)
+            if (Link < 0 || Link >= Nodes.Num() || i > Link)
             {
-                continue;
+                continue; // handle each edge once
             }
 
-            const FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
+            FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
             const float Dist = FMath::Max(Delta.Size(), 1.f);
             const FVector2D Dir = Delta / Dist;
-            const FVector2D Spring = Dir * (Dist - SpringLength) * SpringStiffness;
+            const float Force = Ka * (Dist - IdealDist);
+            const FVector2D Spring = Dir * Force;
             Forces[i] += Spring;
             Forces[Link] -= Spring;
         }
     }
 
+    // Gravity towards the center
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        Forces[i] += -Nodes[i].Position * CenterForce;
+        Forces[i] += -Nodes[i].Position * Gravity * Mass[i];
     }
 
+    // Integrate forces
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        if (!Nodes[i].bFixed)
+        if (Nodes[i].bFixed)
         {
-            Nodes[i].Velocity += Forces[i] * InDeltaTime;
-            Nodes[i].Velocity *= 0.8f;
-            Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
+            Nodes[i].Velocity = FVector2D::ZeroVector;
+            continue;
         }
-    }
 
-    // Clamp the distance between linked nodes to avoid them drifting too far apart
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        for (const int32 Link : Nodes[i].Links)
-        {
-            if (Link < 0 || Link >= Nodes.Num() || Link <= i)
-            {
-                continue;
-            }
-
-            const FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
-            const float Dist = Delta.Size();
-            if (Dist > MaxLinkDistance)
-            {
-                const FVector2D Dir = Delta / Dist;
-                const FVector2D Adjust = Dir * (Dist - MaxLinkDistance) * 0.5f;
-                if (!Nodes[i].bFixed)
-                {
-                    Nodes[i].Position += Adjust;
-                }
-                if (!Nodes[Link].bFixed)
-                {
-                    Nodes[Link].Position -= Adjust;
-                }
-            }
-        }
+        Nodes[i].Velocity += Forces[i] * InDeltaTime;
+        Nodes[i].Velocity *= 0.85f; // friction
+        Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
     }
 }
 
