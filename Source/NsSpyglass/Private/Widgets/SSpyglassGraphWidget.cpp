@@ -2,10 +2,11 @@
 #include "Interfaces/IPluginManager.h"
 #include "Rendering/DrawElements.h"
 #include "Math/RandomStream.h"
+#include "Settings/SpyglassSettings.h"
 
 void SSpyglassGraphWidget::Construct(const FArguments& InArgs)
 {
-    Params = InArgs._Params.IsValid() ? InArgs._Params : MakeShared<FSpyglassGraphParams>();
+    Settings = InArgs._Settings ? InArgs._Settings : const_cast<UNsSpyglassSettings*>(UNsSpyglassSettings::Get());
     RecenterView();
     BuildNodes(FVector2D(800.f, 600.f));
 }
@@ -95,13 +96,13 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         ++CompCount;
     }
 
-    const float ClusterRadius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.35f;
-    const float ClusterSpread = 100.f;
-    const float AngleStep = CompCount > 0 ? (2.f * PI) / CompCount : 0.f;
+    const float ClusterSpacing = 150.f;
+    const float ClusterSpread = 80.f;
     for (int32 c = 0; c < CompCount; ++c)
     {
-        FVector2D CenterOffset(FMath::Cos(c * AngleStep) * ClusterRadius,
-                               FMath::Sin(c * AngleStep) * ClusterRadius);
+        float Radius = ClusterSpacing * FMath::Sqrt((float)c);
+        float Angle = Rand.FRandRange(0.f, 2.f * PI);
+        FVector2D CenterOffset(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle));
         for (int32 i = 1; i < Nodes.Num(); ++i)
         {
             if (Component[i] == c)
@@ -139,6 +140,16 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
 
     const FVector2D Center = AllottedGeometry.GetLocalSize() * 0.5f;
 
+    TSet<int32> Highlight;
+    if (HoveredNode != INDEX_NONE)
+    {
+        Highlight.Add(HoveredNode);
+        for (int32 Link : Nodes[HoveredNode].Links)
+        {
+            Highlight.Add(Link);
+        }
+    }
+
     // Draw edges
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
@@ -152,7 +163,21 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
                 TArray<FVector2D> LinePoints;
                 LinePoints.Add(NodePos);
                 LinePoints.Add(DepPos);
-                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, FLinearColor::Gray);
+                bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
+                FLinearColor Color = FLinearColor::Gray;
+                float Thickness = 1.f;
+                if (HoveredNode != INDEX_NONE)
+                {
+                    if (bConnected)
+                    {
+                        Thickness = 3.f;
+                    }
+                    else
+                    {
+                        Color.A = 0.1f;
+                    }
+                }
+                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, true, Thickness);
             }
         }
     }
@@ -172,6 +197,10 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
         if (i == HoveredNode)
         {
             BoxColor = FLinearColor::Yellow;
+        }
+        else if (HoveredNode != INDEX_NONE && !Highlight.Contains(i))
+        {
+            BoxColor.A = 0.2f;
         }
 
         FSlateDrawElement::MakeBox(
@@ -302,6 +331,12 @@ void SSpyglassGraphWidget::RecenterView()
     ZoomAmount = 1.f;
 }
 
+void SSpyglassGraphWidget::RebuildGraph()
+{
+    BuildNodes(FVector2D(800.f, 600.f));
+    RecenterView();
+}
+
 void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     if (Nodes.Num() == 0)
@@ -312,10 +347,10 @@ void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double 
     TArray<FVector2D> Forces;
     Forces.Init(FVector2D::ZeroVector, Nodes.Num());
 
-    const float Repulsion = Params->Repulsion;
-    const float SpringLength = Params->SpringLength;
-    const float SpringStiffness = Params->SpringStiffness;
-    const float MaxLinkDistance = Params->MaxLinkDistance;
+    const float Repulsion = Settings->Repulsion;
+    const float SpringLength = Settings->SpringLength;
+    const float SpringStiffness = Settings->SpringStiffness;
+    const float MaxLinkDistance = Settings->MaxLinkDistance;
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {

@@ -3,9 +3,11 @@
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Settings/SpyglassSettings.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
@@ -38,68 +40,65 @@ void FNsSpyglassModule::ShutdownModule()
 
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
-    TSharedRef<FSpyglassGraphParams> Params = MakeShared<FSpyglassGraphParams>();
+    UNsSpyglassSettings* Settings = const_cast<UNsSpyglassSettings*>(UNsSpyglassSettings::Get());
+
+    TSharedPtr<SSpyglassGraphWidget> GraphWidget;
+
+    auto Slider = [](float& Value, float Max, UNsSpyglassSettings* InSettings)
+    {
+        return SNew(SSlider)
+            .Value(Value / Max)
+            .OnValueChanged_Lambda([InSettings, Max, &Value](float V)
+            {
+                Value = V * Max;
+                InSettings->SaveConfig();
+            });
+    };
+
+    const float MaxRepulsion = 500000.f;
+    const float MaxSpringLength = 300.f;
+    const float MaxStiffness = 1.f;
+    const float MaxLinkDist = 600.f;
 
     return SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
         [
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot()
-            .AutoHeight()
+            SNew(SHorizontalBox)
+            + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
             [
-                SNew(SHorizontalBox)
-                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                SNew(SVerticalBox)
+                + SVerticalBox::Slot().AutoHeight()
                 [ SNew(STextBlock).Text(FText::FromString("Repulsion")) ]
-                + SHorizontalBox::Slot()
-                [
-                    SNew(SNumericEntryBox<float>)
-                    .Value_Lambda([Params] { return Params->Repulsion; })
-                    .OnValueChanged_Lambda([Params](float V) { Params->Repulsion = V; })
-                ]
-            ]
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SHorizontalBox)
-                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                + SVerticalBox::Slot().AutoHeight()
+                [ Slider(Settings->Repulsion, MaxRepulsion, Settings) ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
                 [ SNew(STextBlock).Text(FText::FromString("Spring Length")) ]
-                + SHorizontalBox::Slot()
-                [
-                    SNew(SNumericEntryBox<float>)
-                    .Value_Lambda([Params] { return Params->SpringLength; })
-                    .OnValueChanged_Lambda([Params](float V) { Params->SpringLength = V; })
-                ]
-            ]
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SHorizontalBox)
-                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                + SVerticalBox::Slot().AutoHeight()
+                [ Slider(Settings->SpringLength, MaxSpringLength, Settings) ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
                 [ SNew(STextBlock).Text(FText::FromString("Spring Stiffness")) ]
-                + SHorizontalBox::Slot()
-                [
-                    SNew(SNumericEntryBox<float>)
-                    .Value_Lambda([Params] { return Params->SpringStiffness; })
-                    .OnValueChanged_Lambda([Params](float V) { Params->SpringStiffness = V; })
-                ]
-            ]
-            + SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SHorizontalBox)
-                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                + SVerticalBox::Slot().AutoHeight()
+                [ Slider(Settings->SpringStiffness, MaxStiffness, Settings) ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
                 [ SNew(STextBlock).Text(FText::FromString("Max Link Distance")) ]
-                + SHorizontalBox::Slot()
-                [
-                    SNew(SNumericEntryBox<float>)
-                    .Value_Lambda([Params] { return Params->MaxLinkDistance; })
-                    .OnValueChanged_Lambda([Params](float V) { Params->MaxLinkDistance = V; })
+                + SVerticalBox::Slot().AutoHeight()
+                [ Slider(Settings->MaxLinkDistance, MaxLinkDist, Settings) ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,10,0,0))
+                [ SNew(SButton)
+                    .Text(FText::FromString("Reset"))
+                    .OnClicked_Lambda([&GraphWidget]()
+                    {
+                        if (GraphWidget.IsValid())
+                        {
+                            GraphWidget->RebuildGraph();
+                        }
+                        return FReply::Handled();
+                    })
                 ]
             ]
-            + SVerticalBox::Slot()
-            .FillHeight(1.f)
+            + SHorizontalBox::Slot().FillWidth(1.f)
             [
-                SNew(SSpyglassGraphWidget).Params(Params)
+                SAssignNew(GraphWidget, SSpyglassGraphWidget).Settings(Settings)
             ]
         ];
 }

@@ -13,20 +13,14 @@ struct FPluginNode
     bool bFixed = false;
 };
 
-/** Parameters that control the force directed layout. */
-struct FSpyglassGraphParams
-{
-    float Repulsion = 200000.f;
-    float SpringLength = 150.f;
-    float SpringStiffness = 0.2f;
-    float MaxLinkDistance = 300.f;
-};
+class UNsSpyglassSettings;
+
 
 class SSpyglassGraphWidget : public SCompoundWidget
 {
 public:
     SLATE_BEGIN_ARGS(SSpyglassGraphWidget) {}
-        SLATE_ARGUMENT(TSharedPtr<FSpyglassGraphParams>, Params)
+        SLATE_ARGUMENT(UNsSpyglassSettings*, Settings)
     SLATE_END_ARGS()
 
     void Construct(const FArguments& InArgs);
@@ -37,6 +31,9 @@ public:
 
     virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+    void RecenterView();
+    void RebuildGraph();
+
 private:
     void BuildNodes(const FVector2D& ViewSize) const;
     int32 HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const;
@@ -46,7 +43,6 @@ private:
     virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
     virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
-    void RecenterView();
 
     mutable TArray<FPluginNode> Nodes;
     mutable FVector2D ViewOffset = FVector2D::ZeroVector;
@@ -57,6 +53,6 @@ private:
     mutable int32 DraggedNode = INDEX_NONE;
     mutable int32 HoveredNode = INDEX_NONE;
 
-    TSharedPtr<FSpyglassGraphParams> Params;
+    UNsSpyglassSettings* Settings = nullptr;
 };
 
