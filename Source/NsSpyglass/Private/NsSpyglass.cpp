@@ -1,20 +1,47 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "NsSpyglass.h"
+#include "Widgets/SSpyglassGraphWidget.h"
+#include "LevelEditor.h"
+#include "ToolMenus.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
+static const FName SpyglassTabName("SpyglassTab");
+
 void FNsSpyglassModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+    FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SpyglassTabName,
+        FOnSpawnTab::CreateRaw(this, &FNsSpyglassModule::OnSpawnPluginTab))
+        .SetDisplayName(LOCTEXT("SpyglassTabTitle", "Spyglass"))
+        .SetMenuType(ETabSpawnerMenuType::Hidden);
+
+    UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateLambda([]
+    {
+        UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window");
+        FToolMenuSection& Section = Menu->AddSection("SpyglassMenu", LOCTEXT("SpyglassMenu", "Spyglass"));
+        Section.AddMenuEntry("OpenSpyglass",
+            LOCTEXT("OpenSpyglass", "Plugin Dependency Viewer"),
+            LOCTEXT("OpenSpyglassTooltip", "Open Spyglass viewer"),
+            FSlateIcon(),
+            FUIAction(FExecuteAction::CreateLambda([] { FGlobalTabmanager::Get()->TryInvokeTab(SpyglassTabName); })));    
+    }));
 }
 
 void FNsSpyglassModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+    UToolMenus::UnregisterOwner(this);
+    FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SpyglassTabName);
+}
+
+TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
+{
+    return SNew(SDockTab)
+        .TabRole(ETabRole::NomadTab)
+        [
+            SNew(SSpyglassGraphWidget)
+        ];
 }
 
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FNsSpyglassModule, NsSpyglass)

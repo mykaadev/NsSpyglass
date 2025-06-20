@@ -22,25 +22,25 @@ public class NsSpyglass : ModuleRules
 			);
 			
 		
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
-			
-		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
-				// ... add private dependencies that you statically link with here ...	
-			}
-			);
+        PublicDependencyModuleNames.AddRange(
+                new string[]
+                {
+                        "Core"
+                }
+                );
+
+
+        PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                        "CoreUObject",
+                        "Engine",
+                        "Slate",
+                        "SlateCore",
+                        "UnrealEd",
+                        "ToolMenus"
+                }
+                );
 		
 		
 		DynamicallyLoadedModuleNames.AddRange(

@@ -14,10 +14,10 @@
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
-		{
-			"Name": "NsSpyglass",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		}
-	]
+                {
+                        "Name": "NsSpyglass",
+                        "Type": "Editor",
+                        "LoadingPhase": "Default"
+                }
+        ]
 }
