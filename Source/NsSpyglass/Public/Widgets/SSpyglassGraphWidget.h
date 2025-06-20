@@ -13,10 +13,20 @@ struct FPluginNode
     bool bFixed = false;
 };
 
+/** Parameters that control the force directed layout. */
+struct FSpyglassGraphParams
+{
+    float Repulsion = 200000.f;
+    float SpringLength = 150.f;
+    float SpringStiffness = 0.2f;
+    float MaxLinkDistance = 300.f;
+};
+
 class SSpyglassGraphWidget : public SCompoundWidget
 {
 public:
     SLATE_BEGIN_ARGS(SSpyglassGraphWidget) {}
+        SLATE_ARGUMENT(TSharedPtr<FSpyglassGraphParams>, Params)
     SLATE_END_ARGS()
 
     void Construct(const FArguments& InArgs);
@@ -46,5 +56,7 @@ private:
     mutable bool bIsDragging = false;
     mutable int32 DraggedNode = INDEX_NONE;
     mutable int32 HoveredNode = INDEX_NONE;
+
+    TSharedPtr<FSpyglassGraphParams> Params;
 };
 

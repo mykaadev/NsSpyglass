@@ -5,6 +5,7 @@
 
 void SSpyglassGraphWidget::Construct(const FArguments& InArgs)
 {
+    Params = InArgs._Params.IsValid() ? InArgs._Params : MakeShared<FSpyglassGraphParams>();
     RecenterView();
     BuildNodes(FVector2D(800.f, 600.f));
 }
@@ -59,6 +60,56 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         // Link to root so everything stays connected
         Nodes[i].Links.Add(RootIndex);
         Nodes[RootIndex].Links.Add(i);
+    }
+
+    // Cluster nodes that are linked together so they start near each other
+    TArray<int32> Component;
+    Component.Init(INDEX_NONE, Nodes.Num());
+    int32 CompCount = 0;
+    for (int32 i = 1; i < Nodes.Num(); ++i)
+    {
+        if (Component[i] != INDEX_NONE)
+        {
+            continue;
+        }
+        TArray<int32> Stack;
+        Stack.Add(i);
+        Component[i] = CompCount;
+
+        while (Stack.Num() > 0)
+        {
+            int32 Cur = Stack.Pop();
+            for (int32 Link : Nodes[Cur].Links)
+            {
+                if (Link == RootIndex)
+                {
+                    continue;
+                }
+                if (Component[Link] == INDEX_NONE)
+                {
+                    Component[Link] = CompCount;
+                    Stack.Add(Link);
+                }
+            }
+        }
+        ++CompCount;
+    }
+
+    const float ClusterRadius = FMath::Min(ViewSize.X, ViewSize.Y) * 0.35f;
+    const float ClusterSpread = 100.f;
+    const float AngleStep = CompCount > 0 ? (2.f * PI) / CompCount : 0.f;
+    for (int32 c = 0; c < CompCount; ++c)
+    {
+        FVector2D CenterOffset(FMath::Cos(c * AngleStep) * ClusterRadius,
+                               FMath::Sin(c * AngleStep) * ClusterRadius);
+        for (int32 i = 1; i < Nodes.Num(); ++i)
+        {
+            if (Component[i] == c)
+            {
+                FVector RandOffset = Rand.VRand() * ClusterSpread;
+                Nodes[i].Position = CenterOffset + FVector2D(RandOffset.X, RandOffset.Y);
+            }
+        }
     }
 }
 
@@ -261,10 +312,10 @@ void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double 
     TArray<FVector2D> Forces;
     Forces.Init(FVector2D::ZeroVector, Nodes.Num());
 
-    const float Repulsion = 200000.f;
-    const float SpringLength = 150.f;
-    const float SpringStiffness = 0.2f;
-    const float MaxLinkDistance = 300.f;
+    const float Repulsion = Params->Repulsion;
+    const float SpringLength = Params->SpringLength;
+    const float SpringStiffness = Params->SpringStiffness;
+    const float MaxLinkDistance = Params->MaxLinkDistance;
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {

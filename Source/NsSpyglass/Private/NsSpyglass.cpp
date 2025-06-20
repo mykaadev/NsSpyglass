@@ -3,6 +3,9 @@
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
@@ -35,10 +38,69 @@ void FNsSpyglassModule::ShutdownModule()
 
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
+    TSharedRef<FSpyglassGraphParams> Params = MakeShared<FSpyglassGraphParams>();
+
     return SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
         [
-            SNew(SSpyglassGraphWidget)
+            SNew(SVerticalBox)
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                [ SNew(STextBlock).Text(FText::FromString("Repulsion")) ]
+                + SHorizontalBox::Slot()
+                [
+                    SNew(SNumericEntryBox<float>)
+                    .Value_Lambda([Params] { return Params->Repulsion; })
+                    .OnValueChanged_Lambda([Params](float V) { Params->Repulsion = V; })
+                ]
+            ]
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                [ SNew(STextBlock).Text(FText::FromString("Spring Length")) ]
+                + SHorizontalBox::Slot()
+                [
+                    SNew(SNumericEntryBox<float>)
+                    .Value_Lambda([Params] { return Params->SpringLength; })
+                    .OnValueChanged_Lambda([Params](float V) { Params->SpringLength = V; })
+                ]
+            ]
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                [ SNew(STextBlock).Text(FText::FromString("Spring Stiffness")) ]
+                + SHorizontalBox::Slot()
+                [
+                    SNew(SNumericEntryBox<float>)
+                    .Value_Lambda([Params] { return Params->SpringStiffness; })
+                    .OnValueChanged_Lambda([Params](float V) { Params->SpringStiffness = V; })
+                ]
+            ]
+            + SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SHorizontalBox)
+                + SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+                [ SNew(STextBlock).Text(FText::FromString("Max Link Distance")) ]
+                + SHorizontalBox::Slot()
+                [
+                    SNew(SNumericEntryBox<float>)
+                    .Value_Lambda([Params] { return Params->MaxLinkDistance; })
+                    .OnValueChanged_Lambda([Params](float V) { Params->MaxLinkDistance = V; })
+                ]
+            ]
+            + SVerticalBox::Slot()
+            .FillHeight(1.f)
+            [
+                SNew(SSpyglassGraphWidget).Params(Params)
+            ]
         ];
 }
 
