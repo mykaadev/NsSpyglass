@@ -369,8 +369,85 @@ void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
     OnNodeHovered = InDelegate;
 }
 
+namespace
+{
+    /**
+     * Perform a single ForceAtlas2 iteration on the node array.
+     */
+    void RunForceAtlas2Step(TArray<FPluginNode>& Nodes, int32 RootIndex, float Repulsion, float Gravity, float DeltaTime)
+    {
+        const int32 Num = Nodes.Num();
+        if (Num <= 1)
+        {
+            return;
+        }
+
+        TArray<float> Mass;
+        Mass.SetNumUninitialized(Num);
+        for (int32 i = 0; i < Num; ++i)
+        {
+            Mass[i] = 1.f + Nodes[i].Links.Num();
+        }
+
+        TArray<FVector2D> Displacement;
+        Displacement.Init(FVector2D::ZeroVector, Num);
+
+        // Repulsion forces
+        for (int32 i = 0; i < Num; ++i)
+        {
+            for (int32 j = i + 1; j < Num; ++j)
+            {
+                FVector2D Delta = Nodes[i].Position - Nodes[j].Position;
+                const float DistSqr = FMath::Max(Delta.SizeSquared(), 1.f);
+                Delta /= FMath::Sqrt(DistSqr);
+                const float Force = Repulsion * Mass[i] * Mass[j] / DistSqr;
+                Displacement[i] += Delta * Force;
+                Displacement[j] -= Delta * Force;
+            }
+        }
+
+        // Attraction along edges
+        for (int32 i = 0; i < Num; ++i)
+        {
+            for (int32 Link : Nodes[i].Links)
+            {
+                if (Link <= i || !Nodes.IsValidIndex(Link))
+                {
+                    continue; // handle each edge once
+                }
+
+                FVector2D Delta = Nodes[i].Position - Nodes[Link].Position;
+                const float Dist = FMath::Max(Delta.Size(), 1.f);
+                Delta /= Dist;
+
+                // Attraction is proportional to distance
+                Displacement[i] -= Delta * Dist;
+                Displacement[Link] += Delta * Dist;
+            }
+        }
+
+        // Gravity to keep graph centered
+        for (int32 i = 0; i < Num; ++i)
+        {
+            Displacement[i] -= Nodes[i].Position * Gravity * Mass[i];
+        }
+
+        const float Step = DeltaTime * 0.01f;
+        for (int32 i = 0; i < Num; ++i)
+        {
+            if (i == RootIndex)
+            {
+                continue; // keep root node anchored
+            }
+
+            Nodes[i].Position += (Displacement[i] / Mass[i]) * Step;
+        }
+    }
+} // namespace
+
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-    // Node dynamics removed. ForceAtlas2 implementation will handle layout.
+    const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
+    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, InDeltaTime);
 }
 
