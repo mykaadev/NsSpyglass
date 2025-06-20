@@ -10,51 +10,55 @@ void SPluginInfoWidget::Construct(const FArguments& InArgs)
 {
     ChildSlot
     [
-        SNew(SScrollBox)
-        + SScrollBox::Slot()
+        SNew(SBox)
+        .MinDesiredWidth(300)
         [
-            SNew(SVerticalBox)
-            + SVerticalBox::Slot().AutoHeight()
+            SNew(SScrollBox)
+            + SScrollBox::Slot()
             [
-                SAssignNew(NameText, STextBlock)
-            ]
-            + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [
-                SAssignNew(DescriptionText, STextBlock).WrapTextAt(250.f)
-            ]
-            + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [
-                SAssignNew(AuthorText, STextBlock)
-            ]
-            + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [
-                SAssignNew(DocsLink, SHyperlink)
-                .Text(FText::FromString("Documentation"))
-                .OnNavigate(this, &SPluginInfoWidget::OnDocsClicked)
-            ]
-            + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
-            [
-                SNew(SSeparator)
-            ]
-            + SVerticalBox::Slot().AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString("Modules:"))
-            ]
-            + SVerticalBox::Slot().AutoHeight()
-            [
-                SAssignNew(ModulesBox, SVerticalBox)
-            ]
-            + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
-            [
-                SNew(SSeparator)
-            ]
-            + SVerticalBox::Slot().AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString("Depends on:"))
-            ]
-            + SVerticalBox::Slot().AutoHeight()
-            [
-                SAssignNew(DependenciesBox, SVerticalBox)
+                SNew(SVerticalBox)
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SAssignNew(NameText, STextBlock)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
+                [
+                    SAssignNew(DescriptionText, STextBlock).WrapTextAt(250.f)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
+                [
+                    SAssignNew(AuthorText, STextBlock)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
+                [
+                    SAssignNew(DocsLink, SHyperlink)
+                    .Text(FText::FromString("Documentation"))
+                    .OnNavigate(this, &SPluginInfoWidget::OnDocsClicked)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
+                [
+                    SNew(SSeparator)
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SNew(STextBlock).Text(FText::FromString("Modules:"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SAssignNew(ModulesBox, SVerticalBox)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
+                [
+                    SNew(SSeparator)
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SNew(STextBlock).Text(FText::FromString("Depends on:"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SAssignNew(DependenciesBox, SVerticalBox)
+                ]
             ]
         ]
     ];
