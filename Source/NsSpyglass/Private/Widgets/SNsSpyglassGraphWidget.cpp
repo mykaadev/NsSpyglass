@@ -201,35 +201,61 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         }
     }
 
-    // Draw edges
+    // Draw edges with arrowheads pointing to dependencies
+    const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.5f, 1.5f);
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
         const FVector2D NodePos = Center + ViewOffset + Node.Position * ZoomAmount;
+        const float NodeRadius = ((Node.Name == TEXT("Root")) ? 60.f : 40.f) * ZoomScale * 0.5f;
+
         for (int32 Link : Node.Links)
         {
-            if (i < Link && Nodes.IsValidIndex(Link))
+            if (!Nodes.IsValidIndex(Link) || i == Link)
             {
-                const FVector2D DepPos = Center + ViewOffset + Nodes[Link].Position * ZoomAmount;
-                TArray<FVector2D> LinePoints;
-                LinePoints.Add(NodePos);
-                LinePoints.Add(DepPos);
-                bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
-                FLinearColor Color = FLinearColor::Gray;
-                float Thickness = 1.f;
-                if (HoveredNode != INDEX_NONE)
-                {
-                    if (bConnected)
-                    {
-                        Thickness = 3.f;
-                    }
-                    else
-                    {
-                        Color.A = 0.1f;
-                    }
-                }
-                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, true, Thickness);
+                continue;
             }
+
+            const FPluginNode& DepNode = Nodes[Link];
+            const FVector2D DepPos = Center + ViewOffset + DepNode.Position * ZoomAmount;
+            const float DepRadius = ((DepNode.Name == TEXT("Root")) ? 60.f : 40.f) * ZoomScale * 0.5f;
+
+            const FVector2D Delta = DepPos - NodePos;
+            const float Dist = FMath::Max(Delta.Size(), 1.f);
+            const FVector2D Dir = Delta / Dist;
+            const FVector2D Start = NodePos + Dir * NodeRadius;
+            const FVector2D End = DepPos - Dir * DepRadius;
+
+            bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
+            FLinearColor Color = FLinearColor::Gray;
+            float Thickness = 1.f;
+            if (HoveredNode != INDEX_NONE)
+            {
+                if (bConnected)
+                {
+                    Thickness = 3.f;
+                }
+                else
+                {
+                    Color.A = 0.1f;
+                }
+            }
+
+            // Line body
+            TArray<FVector2D> LinePoints{Start, End};
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, true, Thickness);
+
+            // Arrowhead
+            const float ArrowSize = 8.f * ZoomScale;
+            const FVector2D Perp(-Dir.Y, Dir.X);
+            const FVector2D Tip = End;
+            const FVector2D ArrowP1 = Tip - Dir * ArrowSize + Perp * ArrowSize * 0.5f;
+            const FVector2D ArrowP2 = Tip - Dir * ArrowSize - Perp * ArrowSize * 0.5f;
+
+            TArray<FVector2D> Arrow1{ArrowP1, Tip};
+            TArray<FVector2D> Arrow2{ArrowP2, Tip};
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, Color, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, Color, true, Thickness);
         }
     }
 
