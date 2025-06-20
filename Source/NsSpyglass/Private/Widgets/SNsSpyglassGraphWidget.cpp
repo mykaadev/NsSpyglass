@@ -3,6 +3,7 @@
 #include "Math/RandomStream.h"
 #include "Rendering/DrawElements.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Settings/NsSpyglassSettings.h"
 
 SNsSpyglassGraphWidget::SNsSpyglassGraphWidget()
@@ -227,16 +228,16 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         {
             BoxColor = FLinearColor(0.8f, 0.2f, 0.2f);
         }
-        if (i == HoveredNode)
-        {
-            BoxColor = FLinearColor::Yellow;
-        }
         else if (HoveredNode != INDEX_NONE && !Highlight.Contains(i))
         {
             BoxColor.A = 0.2f;
         }
 
-        FSlateRoundedBoxBrush CircleBrush(BoxColor, Size * 0.5f);
+        const bool bOutlined = Highlight.Contains(i);
+        const FLinearColor OutlineColor = bOutlined ? FLinearColor(1.f, 0.5f, 0.f) : FLinearColor::Transparent;
+        const float OutlineThickness = bOutlined ? 2.f : 0.f;
+
+        FSlateRoundedBoxBrush CircleBrush(BoxColor, Size * 0.5f, OutlineColor, OutlineThickness);
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId + 1,
@@ -246,12 +247,17 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             FLinearColor::White
         );
 
+        const FSlateFontInfo Font = FCoreStyle::Get().GetFontStyle("NormalFont");
+        const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Node.Name, Font);
+        const float Scale = FMath::Min(1.f, (Size - 8.f) / TextSize.X);
+        const FVector2D Offset((Size - TextSize.X * Scale) * 0.5f, (Size - TextSize.Y * Scale) * 0.5f);
+
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId + 2,
-            AllottedGeometry.ToPaintGeometry(FVector2D(Size - 10.f, 20.f), FSlateLayoutTransform(DrawPos + FVector2D(5.f, Size * 0.5f - 10.f))),
+            AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(Scale, DrawPos + Offset)),
             Node.Name,
-            FCoreStyle::Get().GetFontStyle("NormalFont"),
+            Font,
             ESlateDrawEffect::None,
             FLinearColor::White
         );
