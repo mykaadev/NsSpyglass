@@ -67,9 +67,6 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
 
     // Limits for the slider UI
     const float MaxRepulsion = 500000.f;
-    const float MaxSpringLength = 500.f;
-    const float MaxStiffness = 1.f;
-    const float MaxLinkDist = 1000.f;
     const float MaxCenterForce = 100.f;
 
     TSharedRef<SDockTab> Tab = SNew(SDockTab)
@@ -86,30 +83,6 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 + SVerticalBox::Slot().AutoHeight()
                 [
                     Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 1.f, MaxRepulsion)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Spring Length"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->SpringLength, 1.f, MaxSpringLength)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Spring Stiffness"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->SpringStiffness, 0.f, MaxStiffness)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Max Link Distance"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->MaxLinkDistance, 1.f, MaxLinkDist)
                 ]
                 + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
                 [

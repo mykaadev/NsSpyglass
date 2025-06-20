@@ -469,8 +469,7 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 
     // ForceAtlas2 parameters derived from existing settings
     const float Kr = Settings->Repulsion;             // Repulsion scaling
-    const float Ka = Settings->SpringStiffness;       // Attraction strength
-    const float IdealDist = Settings->SpringLength;   // Desired link distance
+    const float Ka = 1.f;                             // Attraction strength
     const float Gravity = Settings->CenterForce;      // Pull to origin
 
     // Precompute node masses based on degree
@@ -512,10 +511,9 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
             FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
             const float Dist = FMath::Max(Delta.Size(), 1.f);
             const FVector2D Dir = Delta / Dist;
-            const float Force = Ka * (Dist - IdealDist);
-            const FVector2D Spring = Dir * Force;
-            Forces[i] += Spring;
-            Forces[Link] -= Spring;
+            const FVector2D Attr = Dir * Ka * Dist;
+            Forces[i] += Attr;
+            Forces[Link] -= Attr;
         }
     }
 
