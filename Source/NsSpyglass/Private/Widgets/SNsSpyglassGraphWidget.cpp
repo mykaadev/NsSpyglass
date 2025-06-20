@@ -35,7 +35,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
     RootNode.bFixed = true;
-    RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
+    RootNode.Color = FLinearColor(0.2f, 0.2f, 0.2f, 1.f);
     RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
 
@@ -57,13 +57,13 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         {
             const int32 Index = CategoryColors.Num();
             const float Hue = FMath::Fmod(static_cast<float>(Index) * 50.f, 360.f);
-            FLinearColor NewColor = FLinearColor::MakeFromHSV8(static_cast<uint8>(Hue), 160, 255);
-            NewColor.A = 0.1f;
+            FLinearColor NewColor = FLinearColor::MakeFromHSV8(static_cast<uint8>(Hue), 160, 200);
+            NewColor.A = 1.f;
             CategoryColors.Add(Category, NewColor);
             Existing = CategoryColors.Find(Category);
         }
         Node.Color = *Existing;
-        Node.Color.A = 0.1f;
+        Node.Color.A = 1.f;
 
         int32 Idx = Nodes.Add(Node);
         NameToIndex.Add(Node.Name, Idx);
@@ -85,8 +85,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
             }
         }
 
-        // Link to root so everything stays connected
-        Nodes[i].Links.Add(RootIndex);
+        // Link from root so everything stays connected
         Nodes[RootIndex].Links.Add(i);
     }
 
@@ -235,6 +234,12 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
             FLinearColor Color = FLinearColor::Gray;
             float Thickness = 1.f;
+
+            if (i == RootIndex)
+            {
+                Color = Nodes[Link].Color * 0.8f;
+                Color.A = 1.f;
+            }
             if (HoveredNode != INDEX_NONE)
             {
                 if (bConnected)
@@ -243,7 +248,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
                 }
                 else
                 {
-                    Color.A = 0.1f;
+                    Color.A = 0.2f;
                 }
             }
 
@@ -273,25 +278,14 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         const float Size = BaseSize * ZoomScale;
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 
-        FLinearColor BoxColor = Node.Color;
-        if (Node.bIsEngine && Node.Name != TEXT("Root"))
-        {
-            FLinearColor LerpColor = FLinearColor::LerpUsingHSV(BoxColor, FLinearColor::White, 0.3f);
-            LerpColor.A = BoxColor.A;
-            BoxColor = LerpColor;
-        }
+        FLinearColor BoxColor(0.15f, 0.15f, 0.15f, 1.f);
         if (Highlight.Contains(i))
         {
-            BoxColor.A = 0.2f;
-        }
-        else
-        {
-            BoxColor.A = 0.1f;
+            BoxColor = FLinearColor(0.25f, 0.25f, 0.25f, 1.f);
         }
 
-        const bool bOutlined = Highlight.Contains(i);
-        const FLinearColor OutlineColor = bOutlined ? FLinearColor(1.f, 0.5f, 0.f) : FLinearColor::Transparent;
-        const float OutlineThickness = bOutlined ? 2.f : 0.f;
+        const FLinearColor OutlineColor = Node.Color;
+        const float OutlineThickness = Highlight.Contains(i) ? 4.f : 2.f;
 
         FSlateRoundedBoxBrush CircleBrush(FLinearColor::White, Size * 0.5f, OutlineColor, OutlineThickness);
         FSlateDrawElement::MakeBox(
