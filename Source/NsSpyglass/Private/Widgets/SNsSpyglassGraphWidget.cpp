@@ -2,6 +2,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Math/RandomStream.h"
 #include "Rendering/DrawElements.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Settings/NsSpyglassSettings.h"
 
 SNsSpyglassGraphWidget::SNsSpyglassGraphWidget()
@@ -31,7 +32,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
     RootNode.bFixed = true;
-    int32 RootIndex = Nodes.Add(RootNode);
+    RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
 
     // Create nodes for plugins
@@ -146,10 +147,39 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     TSet<int32> Highlight;
     if (HoveredNode != INDEX_NONE)
     {
+        TArray<int32> Stack;
         Highlight.Add(HoveredNode);
-        for (int32 Link : Nodes[HoveredNode].Links)
+        Stack.Add(HoveredNode);
+
+        while (Stack.Num() > 0)
         {
-            Highlight.Add(Link);
+            int32 Cur = Stack.Pop();
+
+            // Forward links (dependencies)
+            for (int32 Link : Nodes[Cur].Links)
+            {
+                if (!Highlight.Contains(Link))
+                {
+                    Highlight.Add(Link);
+                    if (Link != RootIndex)
+                    {
+                        Stack.Add(Link);
+                    }
+                }
+            }
+
+            // Reverse links (dependents)
+            for (int32 i = 0; i < Nodes.Num(); ++i)
+            {
+                if (Nodes[i].Links.Contains(Cur) && !Highlight.Contains(i))
+                {
+                    Highlight.Add(i);
+                    if (i != RootIndex)
+                    {
+                        Stack.Add(i);
+                    }
+                }
+            }
         }
     }
 
@@ -206,13 +236,14 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             BoxColor.A = 0.2f;
         }
 
+        FSlateRoundedBoxBrush CircleBrush(BoxColor, Size * 0.5f);
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId + 1,
             AllottedGeometry.ToPaintGeometry(FVector2D(Size, Size), FSlateLayoutTransform(DrawPos)),
-            FCoreStyle::Get().GetBrush("WhiteBrush"),
+            &CircleBrush,
             ESlateDrawEffect::None,
-            BoxColor
+            FLinearColor::White
         );
 
         FSlateDrawElement::MakeText(

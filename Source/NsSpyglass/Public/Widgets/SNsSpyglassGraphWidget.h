@@ -94,5 +94,8 @@ private:
 
     /** Index of the node currently hovered by the mouse. */
     mutable int32 HoveredNode = INDEX_NONE;
+
+    /** Index of the root node in the Nodes array. */
+    mutable int32 RootIndex = INDEX_NONE;
 };
 
