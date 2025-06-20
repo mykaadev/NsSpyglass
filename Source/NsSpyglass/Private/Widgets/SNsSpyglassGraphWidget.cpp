@@ -86,9 +86,8 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
             }
         }
 
-        // Link to root so everything stays connected
+        // Link to the root so everything stays connected
         Nodes[i].Links.Add(RootIndex);
-        Nodes[RootIndex].Links.Add(i);
     }
 
     // Cluster nodes that are linked together so they start near each other
@@ -233,26 +232,36 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const FVector2D Start = NodePos + Dir * NodeRadius;
             const FVector2D End = DepPos - Dir * DepRadius;
 
-            bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
-            FLinearColor Color = FLinearColor::Gray;
+            const bool bDirectHover = HoveredNode != INDEX_NONE && (i == HoveredNode || Link == HoveredNode);
+
+            FLinearColor LineColor = FLinearColor::Gray;
             float Thickness = 1.f;
+
             if (HoveredNode != INDEX_NONE)
             {
-                if (bConnected)
+                if (bDirectHover)
                 {
+                    LineColor = Nodes[HoveredNode].Color;
+                    LineColor.A = 1.f;
                     Thickness = 3.f;
                 }
                 else
                 {
-                    Color.A = 0.1f;
+                    LineColor.A = 0.1f;
                 }
             }
 
             // Line body
             TArray<FVector2D> LinePoints{Start, End};
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, LineColor, true, Thickness);
 
-            // Arrowhead
+            // Arrowhead uses color of dependency
+            FLinearColor ArrowColor = Nodes[Link].Color;
+            if (HoveredNode != INDEX_NONE && !bDirectHover)
+            {
+                ArrowColor.A = 0.1f;
+            }
+
             const float ArrowSize = 8.f * ZoomScale;
             const FVector2D Perp(-Dir.Y, Dir.X);
             const FVector2D Tip = End;
@@ -261,8 +270,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
             TArray<FVector2D> Arrow1{ArrowP1, Tip};
             TArray<FVector2D> Arrow2{ArrowP2, Tip};
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, Color, true, Thickness);
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, Color, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, ArrowColor, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, ArrowColor, true, Thickness);
         }
     }
 
@@ -291,7 +300,11 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         }
 
         const bool bOutlined = Highlight.Contains(i);
-        const FLinearColor OutlineColor = bOutlined ? FLinearColor(1.f, 0.5f, 0.f) : FLinearColor::Transparent;
+        FLinearColor OutlineColor = bOutlined ? Node.Color : FLinearColor::Transparent;
+        if (bOutlined)
+        {
+            OutlineColor.A = 1.f;
+        }
         const float OutlineThickness = bOutlined ? 2.f : 0.f;
 
         FSlateRoundedBoxBrush CircleBrush(FLinearColor::White, Size * 0.5f, OutlineColor, OutlineThickness);
