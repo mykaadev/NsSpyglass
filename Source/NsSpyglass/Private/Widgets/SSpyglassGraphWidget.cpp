@@ -264,6 +264,7 @@ void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double 
     const float Repulsion = 200000.f;
     const float SpringLength = 150.f;
     const float SpringStiffness = 0.2f;
+    const float MaxLinkDistance = 300.f;
 
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
@@ -302,6 +303,34 @@ void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double 
             Nodes[i].Velocity += Forces[i] * InDeltaTime;
             Nodes[i].Velocity *= 0.8f;
             Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
+        }
+    }
+
+    // Clamp the distance between linked nodes to avoid them drifting too far apart
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        for (int32 Link : Nodes[i].Links)
+        {
+            if (Link < 0 || Link >= Nodes.Num() || Link <= i)
+            {
+                continue;
+            }
+
+            FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
+            float Dist = Delta.Size();
+            if (Dist > MaxLinkDistance)
+            {
+                FVector2D Dir = Delta / Dist;
+                FVector2D Adjust = Dir * (Dist - MaxLinkDistance) * 0.5f;
+                if (!Nodes[i].bFixed)
+                {
+                    Nodes[i].Position += Adjust;
+                }
+                if (!Nodes[Link].bFixed)
+                {
+                    Nodes[Link].Position -= Adjust;
+                }
+            }
         }
     }
 }
