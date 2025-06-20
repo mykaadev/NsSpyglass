@@ -6,6 +6,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNsSpyglassGraphWidget.h"
+#include "Widgets/SPluginInfoWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
@@ -47,6 +48,7 @@ void FNsSpyglassModule::ShutdownModule()
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
     TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
+    TSharedPtr<SPluginInfoWidget> InfoWidget;
 
     // Helper that binds a slider to a settings value
     auto Slider = [](float& Value, const float Min, const float Max)
@@ -70,7 +72,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     const float MaxLinkDist = 1000.f;
     const float MaxCenterForce = 100.f;
 
-    return SNew(SDockTab)
+    TSharedRef<SDockTab> Tab = SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
         [
             SNew(SHorizontalBox)
@@ -122,7 +124,18 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             [
                 SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
             ]
+            + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+            [
+                SAssignNew(InfoWidget, SPluginInfoWidget)
+            ]
         ];
+
+    if (GraphWidget.IsValid() && InfoWidget.IsValid())
+    {
+        GraphWidget->SetOnNodeHovered(SNsSpyglassGraphWidget::FOnNodeHovered::CreateSP(InfoWidget.Get(), &SPluginInfoWidget::SetPlugin));
+    }
+
+    return Tab;
 }
 
 #undef LOCTEXT_NAMESPACE

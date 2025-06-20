@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Interfaces/IPluginManager.h"
 #include "Widgets/SCompoundWidget.h"
 
 /**
@@ -28,6 +29,9 @@ struct FPluginNode
 
     /** When true, the node will not move during simulation. */
     bool bFixed = false;
+
+    /** Plugin reference used for detailed information. */
+    TSharedPtr<IPlugin> Plugin;
 };
 
 /**
@@ -47,6 +51,12 @@ public:
 
     /** Build the widget and initialize graph data. */
     void Construct(const FArguments& InArgs);
+
+    /** Delegate fired when the hovered node changes. */
+    DECLARE_DELEGATE_OneParam(FOnNodeHovered, TSharedPtr<IPlugin>);
+
+    /** Register a callback for hover events. */
+    void SetOnNodeHovered(FOnNodeHovered InDelegate);
 
     //~ Begin SCompoundWidget Interface
     virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -100,5 +110,8 @@ private:
 
     /** Index of the root node in the Nodes array. */
     mutable int32 RootIndex = INDEX_NONE;
+
+    /** Delegate for hover updates. */
+    FOnNodeHovered OnNodeHovered;
 };
 

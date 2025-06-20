@@ -46,6 +46,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         const FVector RandVector = Rand.VRand() * 200.f;
 
         Node.Name = Plugin->GetName();
+        Node.Plugin = Plugin;
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
         Node.Position = FVector2D(RandVector.X, RandVector.Y);
 
@@ -85,9 +86,8 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
             }
         }
 
-        // Link to root so everything stays connected
+        // Link to the root so everything stays connected
         Nodes[i].Links.Add(RootIndex);
-        Nodes[RootIndex].Links.Add(i);
     }
 
     // Cluster nodes that are linked together so they start near each other
@@ -232,26 +232,36 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const FVector2D Start = NodePos + Dir * NodeRadius;
             const FVector2D End = DepPos - Dir * DepRadius;
 
-            bool bConnected = Highlight.Contains(i) && Highlight.Contains(Link);
-            FLinearColor Color = FLinearColor::Gray;
+            const bool bDirectHover = HoveredNode != INDEX_NONE && (i == HoveredNode || Link == HoveredNode);
+
+            FLinearColor LineColor = FLinearColor::Gray;
             float Thickness = 1.f;
+
             if (HoveredNode != INDEX_NONE)
             {
-                if (bConnected)
+                if (bDirectHover)
                 {
+                    LineColor = Nodes[HoveredNode].Color;
+                    LineColor.A = 1.f;
                     Thickness = 3.f;
                 }
                 else
                 {
-                    Color.A = 0.1f;
+                    LineColor.A = 0.1f;
                 }
             }
 
             // Line body
             TArray<FVector2D> LinePoints{Start, End};
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, Color, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, LineColor, true, Thickness);
 
-            // Arrowhead
+            // Arrowhead uses color of dependency
+            FLinearColor ArrowColor = Nodes[Link].Color;
+            if (HoveredNode != INDEX_NONE && !bDirectHover)
+            {
+                ArrowColor.A = 0.1f;
+            }
+
             const float ArrowSize = 8.f * ZoomScale;
             const FVector2D Perp(-Dir.Y, Dir.X);
             const FVector2D Tip = End;
@@ -260,8 +270,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
             TArray<FVector2D> Arrow1{ArrowP1, Tip};
             TArray<FVector2D> Arrow2{ArrowP2, Tip};
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, Color, true, Thickness);
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, Color, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, ArrowColor, true, Thickness);
+            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, ArrowColor, true, Thickness);
         }
     }
 
@@ -290,7 +300,11 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         }
 
         const bool bOutlined = Highlight.Contains(i);
-        const FLinearColor OutlineColor = bOutlined ? FLinearColor(1.f, 0.5f, 0.f) : FLinearColor::Transparent;
+        FLinearColor OutlineColor = bOutlined ? Node.Color : FLinearColor::Transparent;
+        if (bOutlined)
+        {
+            OutlineColor.A = 1.f;
+        }
         const float OutlineThickness = bOutlined ? 2.f : 0.f;
 
         FSlateRoundedBoxBrush CircleBrush(FLinearColor::White, Size * 0.5f, OutlineColor, OutlineThickness);
@@ -393,14 +407,20 @@ FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FP
         return FReply::Handled();
     }
 
-    HoveredNode = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
-    if (HoveredNode != INDEX_NONE)
+    const int32 NewHover = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
+    if (HoveredNode != NewHover)
     {
-        SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
-    }
-    else
-    {
-        SetToolTipText(FText());
+        HoveredNode = NewHover;
+        if (HoveredNode != INDEX_NONE)
+        {
+            SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
+            OnNodeHovered.ExecuteIfBound(Nodes[HoveredNode].Plugin);
+        }
+        else
+        {
+            SetToolTipText(FText());
+            OnNodeHovered.ExecuteIfBound(nullptr);
+        }
     }
 
     return FReply::Unhandled();
@@ -433,6 +453,11 @@ void SNsSpyglassGraphWidget::RebuildGraph()
     RecenterView();
 }
 
+void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
+{
+    OnNodeHovered = InDelegate;
+}
+
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     if (Nodes.Num() == 0)
@@ -440,93 +465,78 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
         return;
     }
 
+    const UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
+
+    // ForceAtlas2 parameters derived from existing settings
+    const float Kr = Settings->Repulsion;             // Repulsion scaling
+    const float Ka = Settings->SpringStiffness;       // Attraction strength
+    const float IdealDist = Settings->SpringLength;   // Desired link distance
+    const float Gravity = Settings->CenterForce;      // Pull to origin
+
+    // Precompute node masses based on degree
+    TArray<float> Mass;
+    Mass.SetNumUninitialized(Nodes.Num());
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        Mass[i] = 1.f + Nodes[i].Links.Num();
+    }
+
     TArray<FVector2D> Forces;
     Forces.Init(FVector2D::ZeroVector, Nodes.Num());
 
-    const UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
-    const float Repulsion = Settings->Repulsion;
-    const float SpringLength = Settings->SpringLength;
-    const float SpringStiffness = Settings->SpringStiffness;
-    const float MaxLinkDistance = Settings->MaxLinkDistance;
-    const float CenterForce = Settings->CenterForce;
-
+    // Repulsion
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         for (int32 j = i + 1; j < Nodes.Num(); ++j)
         {
-            if (Nodes[i].Links.Contains(j) || Nodes[j].Links.Contains(i))
-            {
-                continue;
-            }
-
             FVector2D Delta = Nodes[j].Position - Nodes[i].Position;
             const float DistSq = FMath::Max(Delta.SizeSquared(), 1.f);
             const FVector2D Dir = Delta / FMath::Sqrt(DistSq);
-            const FVector2D Rep = Dir * (Repulsion / DistSq);
+            const float Force = Kr * Mass[i] * Mass[j] / DistSq;
+            const FVector2D Rep = Dir * Force;
             Forces[i] -= Rep;
             Forces[j] += Rep;
         }
     }
 
+    // Attraction along edges
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         for (const int32 Link : Nodes[i].Links)
         {
-            if (Link < 0 || Link >= Nodes.Num() || Link <= i)
+            if (Link < 0 || Link >= Nodes.Num() || i > Link)
             {
-                continue;
+                continue; // handle each edge once
             }
 
-            const FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
+            FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
             const float Dist = FMath::Max(Delta.Size(), 1.f);
             const FVector2D Dir = Delta / Dist;
-            const FVector2D Spring = Dir * (Dist - SpringLength) * SpringStiffness;
+            const float Force = Ka * (Dist - IdealDist);
+            const FVector2D Spring = Dir * Force;
             Forces[i] += Spring;
             Forces[Link] -= Spring;
         }
     }
 
+    // Gravity towards the center
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        Forces[i] += -Nodes[i].Position * CenterForce;
+        Forces[i] += -Nodes[i].Position * Gravity * Mass[i];
     }
 
+    // Integrate forces
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        if (!Nodes[i].bFixed)
+        if (Nodes[i].bFixed)
         {
-            Nodes[i].Velocity += Forces[i] * InDeltaTime;
-            Nodes[i].Velocity *= 0.8f;
-            Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
+            Nodes[i].Velocity = FVector2D::ZeroVector;
+            continue;
         }
-    }
 
-    // Clamp the distance between linked nodes to avoid them drifting too far apart
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        for (const int32 Link : Nodes[i].Links)
-        {
-            if (Link < 0 || Link >= Nodes.Num() || Link <= i)
-            {
-                continue;
-            }
-
-            const FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
-            const float Dist = Delta.Size();
-            if (Dist > MaxLinkDistance)
-            {
-                const FVector2D Dir = Delta / Dist;
-                const FVector2D Adjust = Dir * (Dist - MaxLinkDistance) * 0.5f;
-                if (!Nodes[i].bFixed)
-                {
-                    Nodes[i].Position += Adjust;
-                }
-                if (!Nodes[Link].bFixed)
-                {
-                    Nodes[Link].Position -= Adjust;
-                }
-            }
-        }
+        Nodes[i].Velocity += Forces[i] * InDeltaTime;
+        Nodes[i].Velocity *= 0.85f; // friction
+        Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
     }
 }
 
