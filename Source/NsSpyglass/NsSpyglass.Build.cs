@@ -15,7 +15,6 @@ public class NsSpyglass : ModuleRules
             }
         );
 
-
         PrivateIncludePaths.AddRange(
             new string[]
             {
@@ -23,14 +22,12 @@ public class NsSpyglass : ModuleRules
             }
         );
 
-
         PublicDependencyModuleNames.AddRange(
             new string[]
             {
                 "Core"
             }
         );
-
 
         PrivateDependencyModuleNames.AddRange(
             new string[]
@@ -42,9 +39,9 @@ public class NsSpyglass : ModuleRules
                 "UnrealEd",
                 "ToolMenus",
                 "Projects",
+                "InputCore"
             }
         );
-
 
         DynamicallyLoadedModuleNames.AddRange(
             new string[]

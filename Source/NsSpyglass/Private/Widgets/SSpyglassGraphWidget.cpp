@@ -31,9 +31,11 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
     {
         FPluginNode Node;
+        const FVector RandVector = Rand.VRand() * 200.f;
+
         Node.Name = Plugin->GetName();
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
-        Node.Position = Rand.VRand2() * 200.f;
+        Node.Position = FVector2D(RandVector.X, RandVector.Y);
         int32 Idx = Nodes.Add(Node);
         NameToIndex.Add(Node.Name, Idx);
     }
