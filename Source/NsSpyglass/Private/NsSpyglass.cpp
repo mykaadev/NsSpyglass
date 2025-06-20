@@ -1,13 +1,21 @@
 #include "NsSpyglass.h"
-#include "Widgets/SSpyglassGraphWidget.h"
+#include "Widgets/SNsSpyglassGraphWidget.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Settings/NsSpyglassSettings.h"
+#include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
+// Identifier for the plugin's main tab
 static const FName SpyglassTabName("SpyglassTab");
 
+/** Register the plugin tab and add the menu entry. */
 void FNsSpyglassModule::StartupModule()
 {
     FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SpyglassTabName,
@@ -27,18 +35,85 @@ void FNsSpyglassModule::StartupModule()
     }));
 }
 
+/** Cleanup registered UI on shutdown. */
 void FNsSpyglassModule::ShutdownModule()
 {
     UToolMenus::UnregisterOwner(this);
     FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SpyglassTabName);
 }
 
+/** Create the main plugin tab with the graph widget and parameter controls. */
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
+   ;
+
+    TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
+
+    // Helper that binds a slider to a settings value
+    auto Slider = [](float& Value, const float Min, const float Max)
+    {
+        return SNew(SSpinBox<float>)
+        .Value(Value)
+        .MaxValue(Max)
+        .MinValue(Min)
+        .MinSliderValue(Min)
+        .MaxSliderValue(Max)
+        .OnValueChanged_Lambda([Max, &Value](float V)
+        {
+            Value = V;
+        });
+    };
+
+    // Limits for the slider UI
+    const float MaxRepulsion = 50000.f;
+    const float MaxSpringLength = 500.f;
+    const float MaxStiffness = 1.f;
+    const float MaxLinkDist = 1000.f;
+
     return SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
         [
-            SNew(SSpyglassGraphWidget)
+            SNew(SHorizontalBox)
+            + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+            [
+                SNew(SVerticalBox)
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    SNew(STextBlock).Text(FText::FromString("Repulsion"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 1.f, MaxRepulsion)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+                [
+                    SNew(STextBlock).Text(FText::FromString("Spring Length"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    Slider(UNsSpyglassSettings::GetSettings()->SpringLength, 1.f, MaxSpringLength)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+                [
+                    SNew(STextBlock).Text(FText::FromString("Spring Stiffness"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    Slider(UNsSpyglassSettings::GetSettings()->SpringStiffness, 0.f, MaxStiffness)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+                [
+                    SNew(STextBlock).Text(FText::FromString("Max Link Distance"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    Slider(UNsSpyglassSettings::GetSettings()->MaxLinkDistance, 1.f, MaxLinkDist)
+                ]
+            ]
+            + SHorizontalBox::Slot().FillWidth(1.f)
+            [
+                SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
+            ]
         ];
 }
 

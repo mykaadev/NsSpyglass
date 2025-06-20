@@ -39,7 +39,8 @@ public class NsSpyglass : ModuleRules
                 "UnrealEd",
                 "ToolMenus",
                 "Projects",
-                "InputCore"
+                "InputCore",
+                "DeveloperSettings"
             }
         );
 
