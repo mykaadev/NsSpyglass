@@ -1,9 +1,10 @@
 #include "Widgets/SNsSpyglassGraphWidget.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
+#include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Math/RandomStream.h"
 #include "Rendering/DrawElements.h"
-#include "Brushes/SlateRoundedBoxBrush.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Settings/NsSpyglassSettings.h"
 
 SNsSpyglassGraphWidget::SNsSpyglassGraphWidget()
@@ -269,7 +270,6 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     {
         const FPluginNode& Node = Nodes[i];
         const float BaseSize = Node.Name == TEXT("Root") ? 60.f : 40.f;
-        const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.5f, 1.5f);
         const float Size = BaseSize * ZoomScale;
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 

@@ -1,14 +1,12 @@
 #include "NsSpyglass.h"
-#include "Widgets/SNsSpyglassGraphWidget.h"
-#include "LevelEditor.h"
+#include "Settings/NsSpyglassSettings.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Settings/NsSpyglassSettings.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SNsSpyglassGraphWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
@@ -31,7 +29,10 @@ void FNsSpyglassModule::StartupModule()
             LOCTEXT("OpenSpyglass", "Plugin Dependency Viewer"),
             LOCTEXT("OpenSpyglassTooltip", "Open Spyglass viewer"),
             FSlateIcon(),
-            FUIAction(FExecuteAction::CreateLambda([] { FGlobalTabmanager::Get()->TryInvokeTab(SpyglassTabName); })));    
+            FUIAction(FExecuteAction::CreateLambda([]
+            {
+                FGlobalTabmanager::Get()->TryInvokeTab(SpyglassTabName);
+            })));
     }));
 }
 
@@ -45,8 +46,6 @@ void FNsSpyglassModule::ShutdownModule()
 /** Create the main plugin tab with the graph widget and parameter controls. */
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
-   ;
-
     TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
 
     // Helper that binds a slider to a settings value
@@ -58,17 +57,18 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
         .MinValue(Min)
         .MinSliderValue(Min)
         .MaxSliderValue(Max)
-        .OnValueChanged_Lambda([Max, &Value](float V)
+        .OnValueChanged_Lambda([Max, &Value](const float V)
         {
             Value = V;
         });
     };
 
     // Limits for the slider UI
-    const float MaxRepulsion = 50000.f;
+    const float MaxRepulsion = 500000.f;
     const float MaxSpringLength = 500.f;
     const float MaxStiffness = 1.f;
     const float MaxLinkDist = 1000.f;
+    const float MaxCenterForce = 100.f;
 
     return SNew(SDockTab)
         .TabRole(ETabRole::NomadTab)
@@ -108,6 +108,14 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 + SVerticalBox::Slot().AutoHeight()
                 [
                     Slider(UNsSpyglassSettings::GetSettings()->MaxLinkDistance, 1.f, MaxLinkDist)
+                ]
+                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+                [
+                    SNew(STextBlock).Text(FText::FromString("Center Force"))
+                ]
+                + SVerticalBox::Slot().AutoHeight()
+                [
+                    Slider(UNsSpyglassSettings::GetSettings()->CenterForce, 1.f, MaxCenterForce)
                 ]
             ]
             + SHorizontalBox::Slot().FillWidth(1.f)
