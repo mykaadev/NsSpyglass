@@ -23,6 +23,9 @@ struct FPluginNode
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
 
+    /** Color assigned to this node's group. */
+    FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.1f);
+
     /** When true, the node will not move during simulation. */
     bool bFixed = false;
 };
@@ -94,5 +97,8 @@ private:
 
     /** Index of the node currently hovered by the mouse. */
     mutable int32 HoveredNode = INDEX_NONE;
+
+    /** Index of the root node in the Nodes array. */
+    mutable int32 RootIndex = INDEX_NONE;
 };
 

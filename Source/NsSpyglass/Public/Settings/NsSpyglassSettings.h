@@ -42,4 +42,8 @@ public:
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float MaxLinkDistance;
 
+    /** Strength of the force pulling nodes toward the center. */
+    UPROPERTY(EditAnywhere, Config, Category="Layout")
+    float CenterForce;
+
 };
