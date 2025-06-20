@@ -1,10 +1,10 @@
 #include "Widgets/SPluginInfoWidget.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Interfaces/IPluginManager.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Interfaces/IPluginManager.h"
 
 void SPluginInfoWidget::Construct(const FArguments& InArgs)
 {
@@ -15,28 +15,47 @@ void SPluginInfoWidget::Construct(const FArguments& InArgs)
         [
             SNew(SVerticalBox)
             + SVerticalBox::Slot().AutoHeight()
-            [ SAssignNew(NameText, STextBlock) ]
+            [
+                SAssignNew(NameText, STextBlock)
+            ]
             + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [ SAssignNew(DescriptionText, STextBlock).WrapTextAt(250.f) ]
+            [
+                SAssignNew(DescriptionText, STextBlock).WrapTextAt(250.f)
+            ]
             + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [ SAssignNew(AuthorText, STextBlock) ]
+            [
+                SAssignNew(AuthorText, STextBlock)
+            ]
             + SVerticalBox::Slot().AutoHeight().Padding(0.f, 2.f)
-            [ SAssignNew(DocsLink, SHyperlink)
+            [
+                SAssignNew(DocsLink, SHyperlink)
                 .Text(FText::FromString("Documentation"))
                 .OnNavigate(this, &SPluginInfoWidget::OnDocsClicked)
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
-            [ SNew(SSeparator) ]
+            [
+                SNew(SSeparator)
+            ]
             + SVerticalBox::Slot().AutoHeight()
-            [ SNew(STextBlock).Text(FText::FromString("Modules:")) ]
+            [
+                SNew(STextBlock).Text(FText::FromString("Modules:"))
+            ]
             + SVerticalBox::Slot().AutoHeight()
-            [ SAssignNew(ModulesBox, SVerticalBox) ]
+            [
+                SAssignNew(ModulesBox, SVerticalBox)
+            ]
             + SVerticalBox::Slot().AutoHeight().Padding(0.f, 5.f)
-            [ SNew(SSeparator) ]
+            [
+                SNew(SSeparator)
+            ]
             + SVerticalBox::Slot().AutoHeight()
-            [ SNew(STextBlock).Text(FText::FromString("Depends on:")) ]
+            [
+                SNew(STextBlock).Text(FText::FromString("Depends on:"))
+            ]
             + SVerticalBox::Slot().AutoHeight()
-            [ SAssignNew(DependenciesBox, SVerticalBox) ]
+            [
+                SAssignNew(DependenciesBox, SVerticalBox)
+            ]
         ]
     ];
 
@@ -72,7 +91,9 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
     {
         FLinearColor Color = (Mod.Type == EHostType::Runtime) ? FLinearColor(0.2f, 0.6f, 1.f) : FLinearColor(1.f, 1.f, 0.1f);
         ModulesBox->AddSlot().AutoHeight()
-        [ SNew(STextBlock).ColorAndOpacity(Color).Text(FText::FromName(Mod.Name)) ];
+        [
+            SNew(STextBlock).ColorAndOpacity(Color).Text(FText::FromName(Mod.Name))
+        ];
     }
 
     DependenciesBox->ClearChildren();
@@ -81,7 +102,9 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
         if (Ref.bEnabled)
         {
             DependenciesBox->AddSlot().AutoHeight()
-            [ SNew(STextBlock).Text(FText::FromString(Ref.Name.ToString())) ];
+            [
+                SNew(STextBlock).Text(FText::FromString(Ref.Name))
+            ];
         }
     }
 }
@@ -90,7 +113,7 @@ void SPluginInfoWidget::OnDocsClicked() const
 {
     if (!DocsURL.IsEmpty())
     {
-        FSlateApplication::Get().OpenURL(DocsURL);
+        FPlatformProcess::LaunchURL(*DocsURL, nullptr, nullptr);
     }
 }
 
