@@ -24,7 +24,7 @@ struct FPluginNode
     bool bIsEngine = false;
 
     /** Color assigned to this node's group. */
-    FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.7f);
+    FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.1f);
 
     /** When true, the node will not move during simulation. */
     bool bFixed = false;
