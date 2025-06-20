@@ -3,7 +3,6 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
-#include "Math/RandomStream.h"
 #include "Rendering/DrawElements.h"
 #include "Settings/NsSpyglassSettings.h"
 
@@ -23,8 +22,6 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 {
     Nodes.Reset();
 
-    FRandomStream Rand(12345);
-
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
     TMap<FString, int32> NameToIndex;
@@ -34,7 +31,6 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     FPluginNode RootNode;
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
-    RootNode.bFixed = true;
     RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
     RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
@@ -43,12 +39,10 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
     {
         FPluginNode Node;
-        const FVector RandVector = Rand.VRand() * 200.f;
-
         Node.Name = Plugin->GetName();
         Node.Plugin = Plugin;
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
-        Node.Position = FVector2D(RandVector.X, RandVector.Y);
+        Node.Position = FVector2D::ZeroVector;
 
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         const FString Category = Desc.Category.IsEmpty() ? TEXT("Misc") : Desc.Category;
@@ -90,55 +84,6 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         Nodes[i].Links.Add(RootIndex);
     }
 
-    // Cluster nodes that are linked together so they start near each other
-    TArray<int32> Component;
-    Component.Init(INDEX_NONE, Nodes.Num());
-    int32 CompCount = 0;
-    for (int32 i = 1; i < Nodes.Num(); ++i)
-    {
-        if (Component[i] != INDEX_NONE)
-        {
-            continue;
-        }
-        TArray<int32> Stack;
-        Stack.Add(i);
-        Component[i] = CompCount;
-
-        while (Stack.Num() > 0)
-        {
-            int32 Cur = Stack.Pop();
-            for (int32 Link : Nodes[Cur].Links)
-            {
-                if (Link == RootIndex)
-                {
-                    continue;
-                }
-                if (Component[Link] == INDEX_NONE)
-                {
-                    Component[Link] = CompCount;
-                    Stack.Add(Link);
-                }
-            }
-        }
-        ++CompCount;
-    }
-
-    const float ClusterSpacing = 150.f;
-    const float ClusterSpread = 80.f;
-    for (int32 c = 0; c < CompCount; ++c)
-    {
-        float Radius = ClusterSpacing * FMath::Sqrt(static_cast<float>(c));
-        float Angle = Rand.FRandRange(0.f, 2.f * PI);
-        FVector2D CenterOffset(Radius * FMath::Cos(Angle), Radius * FMath::Sin(Angle));
-        for (int32 i = 1; i < Nodes.Num(); ++i)
-        {
-            if (Component[i] == c)
-            {
-                FVector RandOffset = Rand.VRand() * ClusterSpread;
-                Nodes[i].Position = CenterOffset + FVector2D(RandOffset.X, RandOffset.Y);
-            }
-        }
-    }
 }
 
 int32 SNsSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const
@@ -338,27 +283,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
 FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-    const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-
-    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
-    {
-        int32 Hit = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
-        if (Hit != INDEX_NONE)
-        {
-            bIsDragging = true;
-            DraggedNode = Hit;
-            Nodes[Hit].bFixed = true;
-            LastMousePos = LocalPos;
-            return FReply::Handled();
-        }
-        else
-        {
-            bIsPanning = true;
-            LastMousePos = MouseEvent.GetScreenSpacePosition();
-            return FReply::Handled();
-        }
-    }
-    else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ||
+        MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = true;
         LastMousePos = MouseEvent.GetScreenSpacePosition();
@@ -370,36 +296,21 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, co
 
 FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bIsDragging)
-    {
-        if (Nodes.IsValidIndex(DraggedNode))
-        {
-            Nodes[DraggedNode].bFixed = false;
-        }
-        bIsDragging = false;
-        DraggedNode = INDEX_NONE;
-    }
-
-    if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ||
+        MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = false;
+        return FReply::Handled();
     }
 
-    return FReply::Handled();
+    return FReply::Unhandled();
 }
 
 FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-    if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
-    {
-        const FVector2D Delta = (LocalPos - LastMousePos) / ZoomAmount;
-        Nodes[DraggedNode].Position += Delta;
-        LastMousePos = LocalPos;
-        return FReply::Handled();
-    }
-    else if (bIsPanning)
+    if (bIsPanning)
     {
         const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - LastMousePos;
         ViewOffset += Delta;
@@ -460,81 +371,6 @@ void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
 
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-    if (Nodes.Num() == 0)
-    {
-        return;
-    }
-
-    const UNsSpyglassSettings* const Settings = UNsSpyglassSettings::GetSettings();
-
-    // ForceAtlas2 parameters derived from existing settings
-    const float Kr = Settings->Repulsion;             // Repulsion scaling
-    const float Ka = 1.f;                             // Attraction strength
-    const float Gravity = Settings->CenterForce;      // Pull to origin
-
-    // Precompute node masses based on degree
-    TArray<float> Mass;
-    Mass.SetNumUninitialized(Nodes.Num());
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        Mass[i] = 1.f + Nodes[i].Links.Num();
-    }
-
-    TArray<FVector2D> Forces;
-    Forces.Init(FVector2D::ZeroVector, Nodes.Num());
-
-    // Repulsion
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        for (int32 j = i + 1; j < Nodes.Num(); ++j)
-        {
-            FVector2D Delta = Nodes[j].Position - Nodes[i].Position;
-            const float DistSq = FMath::Max(Delta.SizeSquared(), 1.f);
-            const FVector2D Dir = Delta / FMath::Sqrt(DistSq);
-            const float Force = Kr * Mass[i] * Mass[j] / DistSq;
-            const FVector2D Rep = Dir * Force;
-            Forces[i] -= Rep;
-            Forces[j] += Rep;
-        }
-    }
-
-    // Attraction along edges
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        for (const int32 Link : Nodes[i].Links)
-        {
-            if (Link < 0 || Link >= Nodes.Num() || i > Link)
-            {
-                continue; // handle each edge once
-            }
-
-            FVector2D Delta = Nodes[Link].Position - Nodes[i].Position;
-            const float Dist = FMath::Max(Delta.Size(), 1.f);
-            const FVector2D Dir = Delta / Dist;
-            const FVector2D Attr = Dir * Ka * Dist;
-            Forces[i] += Attr;
-            Forces[Link] -= Attr;
-        }
-    }
-
-    // Gravity towards the center
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        Forces[i] += -Nodes[i].Position * Gravity * Mass[i];
-    }
-
-    // Integrate forces
-    for (int32 i = 0; i < Nodes.Num(); ++i)
-    {
-        if (Nodes[i].bFixed)
-        {
-            Nodes[i].Velocity = FVector2D::ZeroVector;
-            continue;
-        }
-
-        Nodes[i].Velocity += Forces[i] * InDeltaTime;
-        Nodes[i].Velocity *= 0.85f; // friction
-        Nodes[i].Position += Nodes[i].Velocity * InDeltaTime;
-    }
+    // Node dynamics removed. ForceAtlas2 implementation will handle layout.
 }
 
