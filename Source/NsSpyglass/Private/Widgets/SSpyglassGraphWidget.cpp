@@ -2,6 +2,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Rendering/DrawElements.h"
 #include "Math/RandomStream.h"
+#include "Containers/Queue.h"
 
 void SSpyglassGraphWidget::Construct(const FArguments& InArgs)
 {
@@ -52,6 +53,7 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
                 if (int32* DepIdx = NameToIndex.Find(Ref.Name))
                 {
                     Nodes[i].Links.Add(*DepIdx);
+                    Nodes[*DepIdx].Links.Add(i);
                 }
             }
         }
@@ -101,7 +103,8 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
                 TArray<FVector2D> LinePoints;
                 LinePoints.Add(NodePos);
                 LinePoints.Add(DepPos);
-                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, FLinearColor::Gray);
+                FLinearColor LineColor = (HighlightedNodes.Contains(i) && HighlightedNodes.Contains(Link)) ? FLinearColor::Yellow : FLinearColor::Gray;
+                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, LineColor);
             }
         }
     }
@@ -118,7 +121,7 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
         {
             BoxColor = FLinearColor(0.8f, 0.2f, 0.2f);
         }
-        if (i == HoveredNode)
+        if (HighlightedNodes.Contains(i) || i == HoveredNode)
         {
             BoxColor = FLinearColor::Yellow;
         }
@@ -221,10 +224,12 @@ FReply SSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FPoi
     if (HoveredNode != INDEX_NONE)
     {
         SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
+        UpdateHighlightedNodes(HoveredNode);
     }
     else
     {
         SetToolTipText(FText());
+        HighlightedNodes.Reset();
     }
 
     return FReply::Unhandled();
@@ -249,6 +254,42 @@ void SSpyglassGraphWidget::RecenterView()
 {
     ViewOffset = FVector2D::ZeroVector;
     ZoomAmount = 1.f;
+}
+
+void SSpyglassGraphWidget::UpdateHighlightedNodes(int32 StartIndex) const
+{
+    HighlightedNodes.Reset();
+
+    if (!Nodes.IsValidIndex(StartIndex))
+    {
+        return;
+    }
+
+    TQueue<int32> Queue;
+    TSet<int32> Visited;
+
+    Queue.Enqueue(StartIndex);
+    Visited.Add(StartIndex);
+
+    while (!Queue.IsEmpty())
+    {
+        int32 Curr = INDEX_NONE;
+        Queue.Dequeue(Curr);
+        HighlightedNodes.Add(Curr);
+
+        for (int32 Link : Nodes[Curr].Links)
+        {
+            if (Link == 0) // ignore root connections
+            {
+                continue;
+            }
+            if (Nodes.IsValidIndex(Link) && !Visited.Contains(Link))
+            {
+                Visited.Add(Link);
+                Queue.Enqueue(Link);
+            }
+        }
+    }
 }
 
 void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

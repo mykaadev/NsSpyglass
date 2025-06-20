@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Containers/Set.h"
 
 struct FPluginNode
 {
@@ -37,6 +38,7 @@ private:
     virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
     void RecenterView();
+    void UpdateHighlightedNodes(int32 StartIndex) const;
 
     mutable TArray<FPluginNode> Nodes;
     mutable FVector2D ViewOffset = FVector2D::ZeroVector;
@@ -46,5 +48,6 @@ private:
     mutable bool bIsDragging = false;
     mutable int32 DraggedNode = INDEX_NONE;
     mutable int32 HoveredNode = INDEX_NONE;
+    mutable TSet<int32> HighlightedNodes;
 };
 
