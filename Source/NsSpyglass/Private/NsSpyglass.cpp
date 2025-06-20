@@ -11,8 +11,10 @@
 
 #define LOCTEXT_NAMESPACE "FNsSpyglassModule"
 
+// Identifier for the plugin's main tab
 static const FName SpyglassTabName("SpyglassTab");
 
+/** Register the plugin tab and add the menu entry. */
 void FNsSpyglassModule::StartupModule()
 {
     FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SpyglassTabName,
@@ -32,18 +34,21 @@ void FNsSpyglassModule::StartupModule()
     }));
 }
 
+/** Cleanup registered UI on shutdown. */
 void FNsSpyglassModule::ShutdownModule()
 {
     UToolMenus::UnregisterOwner(this);
     FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(SpyglassTabName);
 }
 
+/** Create the main plugin tab with the graph widget and parameter controls. */
 TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Args)
 {
     UNsSpyglassSettings* Settings = const_cast<UNsSpyglassSettings*>(UNsSpyglassSettings::Get());
 
     TSharedPtr<SSpyglassGraphWidget> GraphWidget;
 
+    // Helper that binds a slider to a settings value
     auto Slider = [](float& Value, float Max, UNsSpyglassSettings* InSettings)
     {
         return SNew(SSlider)
@@ -55,6 +60,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             });
     };
 
+    // Limits for the slider UI
     const float MaxRepulsion = 500000.f;
     const float MaxSpringLength = 300.f;
     const float MaxStiffness = 1.f;

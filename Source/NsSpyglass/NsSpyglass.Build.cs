@@ -40,6 +40,7 @@ public class NsSpyglass : ModuleRules
                 "ToolMenus",
                 "Projects",
                 "InputCore",
+                // Needed for persistent UI sliders
                 "DeveloperSettings"
             }
         );

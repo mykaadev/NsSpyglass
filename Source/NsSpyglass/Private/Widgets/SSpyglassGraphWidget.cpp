@@ -4,6 +4,7 @@
 #include "Math/RandomStream.h"
 #include "Settings/SpyglassSettings.h"
 
+/** Initialize the widget and create the default graph. */
 void SSpyglassGraphWidget::Construct(const FArguments& InArgs)
 {
     Settings = InArgs._Settings ? InArgs._Settings : const_cast<UNsSpyglassSettings*>(UNsSpyglassSettings::Get());
@@ -11,6 +12,7 @@ void SSpyglassGraphWidget::Construct(const FArguments& InArgs)
     BuildNodes(FVector2D(800.f, 600.f));
 }
 
+/** Collect all enabled plugins and build initial node data. */
 void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 {
     Nodes.Reset();
@@ -114,6 +116,7 @@ void SSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     }
 }
 
+/** Return the index of the node at the given position. */
 int32 SSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const
 {
     const FVector2D Center = ViewSize * 0.5f;
@@ -129,6 +132,7 @@ int32 SSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector
     return INDEX_NONE;
 }
 
+/** Draw nodes and edges with optional highlighting. */
 int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
     const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
     int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -226,6 +230,7 @@ int32 SSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& All
     return LayerId + 3;
 }
 
+/** Start dragging a node or begin panning the view. */
 FReply SSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
@@ -258,6 +263,7 @@ FReply SSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, cons
     return FReply::Unhandled();
 }
 
+/** Stop dragging or panning when the mouse is released. */
 FReply SSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
     if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bIsDragging)
@@ -278,6 +284,7 @@ FReply SSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const 
     return FReply::Handled();
 }
 
+/** Handle dragging, panning and hover highlighting. */
 FReply SSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
@@ -310,6 +317,7 @@ FReply SSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FPoi
     return FReply::Unhandled();
 }
 
+/** Zoom the view around the mouse cursor. */
 FReply SSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
     const FVector2D LocalMousePos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
@@ -325,18 +333,23 @@ FReply SSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const FPo
     return FReply::Handled();
 }
 
+/** Reset the zoom and pan offsets. */
+/** Reset the view to its default center and zoom. */
 void SSpyglassGraphWidget::RecenterView()
 {
     ViewOffset = FVector2D::ZeroVector;
     ZoomAmount = 1.f;
 }
 
+/** Recreate all nodes and reset the view. */
+/** Rebuild the node list from loaded plugins. */
 void SSpyglassGraphWidget::RebuildGraph()
 {
     BuildNodes(FVector2D(800.f, 600.f));
     RecenterView();
 }
 
+/** Apply spring forces and update node positions every frame. */
 void SSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     if (Nodes.Num() == 0)
