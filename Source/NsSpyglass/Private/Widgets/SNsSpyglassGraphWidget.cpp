@@ -207,7 +207,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     }
 
     // Draw edges with arrowheads pointing to dependencies
-    const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.5f, 1.5f);
+    const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.1f, 1.5f);
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
@@ -354,7 +354,14 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, cons
     {
         if (Nodes.IsValidIndex(DraggedNode))
         {
-            Nodes[DraggedNode].bFixed = false;
+            if (DraggedNode == RootIndex)
+            {
+                Nodes[DraggedNode].bFixed = true;
+            }
+            else
+            {
+                Nodes[DraggedNode].bFixed = false;
+            }
         }
         bIsDragging = false;
         DraggedNode = INDEX_NONE;
@@ -432,6 +439,12 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
     if (Nodes.Num() == 0)
     {
         return;
+    }
+
+    if (Nodes.IsValidIndex(RootIndex) && (!bIsDragging || DraggedNode != RootIndex))
+    {
+        const float LerpAlpha = FMath::Clamp(InDeltaTime * 5.f, 0.f, 1.f);
+        Nodes[RootIndex].Position = FMath::Lerp(Nodes[RootIndex].Position, FVector2D::ZeroVector, LerpAlpha);
     }
 
     TArray<FVector2D> Forces;
