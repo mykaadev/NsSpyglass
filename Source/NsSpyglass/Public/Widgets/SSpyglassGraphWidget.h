@@ -23,8 +23,19 @@ public:
         int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 private:
-    void BuildNodes() const;
+    void BuildNodes(const FVector2D& ViewSize) const;
+
+    FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+    FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+    FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+    FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+    void RecenterView();
 
     mutable TArray<FPluginNode> Nodes;
+    mutable FVector2D ViewOffset = FVector2D::ZeroVector;
+    mutable FVector2D LastMousePos = FVector2D::ZeroVector;
+    mutable float ZoomAmount = 1.f;
+    mutable bool bIsPanning = false;
 };
 
