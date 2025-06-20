@@ -166,36 +166,39 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     if (HoveredNode != INDEX_NONE)
     {
         TArray<int32> Stack;
+        TSet<int32> Visited;
         Highlight.Add(HoveredNode);
         Stack.Add(HoveredNode);
+        Visited.Add(HoveredNode);
 
         while (Stack.Num() > 0)
         {
             int32 Cur = Stack.Pop();
 
+            if (Cur == RootIndex)
+            {
+                continue; // do not traverse beyond the root
+            }
+
             // Forward links (dependencies)
             for (int32 Link : Nodes[Cur].Links)
             {
-                if (!Highlight.Contains(Link))
+                if (!Visited.Contains(Link))
                 {
                     Highlight.Add(Link);
-                    if (Link != RootIndex)
-                    {
-                        Stack.Add(Link);
-                    }
+                    Visited.Add(Link);
+                    Stack.Add(Link);
                 }
             }
 
             // Reverse links (dependents)
             for (int32 i = 0; i < Nodes.Num(); ++i)
             {
-                if (Nodes[i].Links.Contains(Cur) && !Highlight.Contains(i))
+                if (Nodes[i].Links.Contains(Cur) && !Visited.Contains(i))
                 {
                     Highlight.Add(i);
-                    if (i != RootIndex)
-                    {
-                        Stack.Add(i);
-                    }
+                    Visited.Add(i);
+                    Stack.Add(i);
                 }
             }
         }
