@@ -220,7 +220,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
-        float Size = Node.Name == TEXT("Root") ? 60.f : 40.f;
+        const float BaseSize = Node.Name == TEXT("Root") ? 60.f : 40.f;
+        const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.5f, 1.5f);
+        const float Size = BaseSize * ZoomScale;
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 
         FLinearColor BoxColor = Node.bIsEngine ? FLinearColor(0.1f, 0.6f, 0.1f) : FLinearColor(0.1f, 0.4f, 0.8f);
