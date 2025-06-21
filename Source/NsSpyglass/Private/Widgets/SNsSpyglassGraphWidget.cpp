@@ -117,8 +117,9 @@ int32 SNsSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVect
     const FVector2D Center = ViewSize * 0.5f;
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        float Size = Nodes[i].Name == TEXT("Root") ? 60.f : 40.f;
-        FVector2D NodePos = Center + ViewOffset + Nodes[i].Position * ZoomAmount;
+        const float BaseSize = Nodes[i].Name == TEXT("Root") ? 60.f : 40.f;
+        const float Size = BaseSize * ZoomAmount;
+        const FVector2D NodePos = Center + ViewOffset + Nodes[i].Position * ZoomAmount;
         if ((LocalPos - NodePos).SizeSquared() <= FMath::Square(Size * 0.5f))
         {
             return i;
