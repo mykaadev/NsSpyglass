@@ -3,8 +3,8 @@
 #include "Settings/NsSpyglassSettings.h"
 
 UNsSpyglassSettings::UNsSpyglassSettings()
-   : Repulsion(200000.f)
-   , CenterForce(5.f)
+   : Repulsion(5000.f)
+   , CenterForce(0.5f)
 {}
 
 UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
