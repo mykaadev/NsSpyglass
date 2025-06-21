@@ -13,13 +13,16 @@ struct FPluginNode
     FString Name;
 
     /** Current position relative to the center of the view. */
-    FVector2D Position;
+    FVector2D Position = FVector2D::ZeroVector;
 
-    /** Velocity accumulated by the solver. */
-    FVector2D Velocity = FVector2D::ZeroVector;
-
-    /** Indices of linked plugins. */
+    /** Indices of linked plugins used by the layout. */
     TArray<int32> Links;
+
+    /** Directed dependencies for this plugin. */
+    TArray<int32> Dependencies;
+
+    /** Plugins that directly depend on this one. */
+    TArray<int32> Dependents;
 
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
@@ -27,8 +30,9 @@ struct FPluginNode
     /** Color assigned to this node's group. */
     FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.1f);
 
-    /** When true, the node will not move during simulation. */
+    /** When true, the node will remain stationary during simulation. */
     bool bFixed = false;
+
 
     /** Plugin reference used for detailed information. */
     TSharedPtr<IPlugin> Plugin;
@@ -99,11 +103,12 @@ private:
     /** Whether the user is currently panning the view. */
     mutable bool bIsPanning = false;
 
-    /** Whether a node is being dragged. */
+    /** Whether a node is currently being dragged. */
     mutable bool bIsDragging = false;
 
-    /** Index of the dragged node. */
+    /** Index of the node currently dragged by the user. */
     mutable int32 DraggedNode = INDEX_NONE;
+
 
     /** Index of the node currently hovered by the mouse. */
     mutable int32 HoveredNode = INDEX_NONE;

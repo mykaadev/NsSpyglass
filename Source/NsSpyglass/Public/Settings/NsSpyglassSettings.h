@@ -30,18 +30,6 @@ public:
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float Repulsion;
 
-    /** Desired distance when nodes are linked together. */
-    UPROPERTY(EditAnywhere, Config, Category="Layout")
-    float SpringLength;
-
-    /** Stiffness used by the spring connections. */
-    UPROPERTY(EditAnywhere, Config, Category="Layout")
-    float SpringStiffness;
-
-    /** Maximum allowed distance between linked nodes. */
-    UPROPERTY(EditAnywhere, Config, Category="Layout")
-    float MaxLinkDistance;
-
     /** Strength of the force pulling nodes toward the center. */
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float CenterForce;

@@ -3,11 +3,8 @@
 #include "Settings/NsSpyglassSettings.h"
 
 UNsSpyglassSettings::UNsSpyglassSettings()
-   : Repulsion(200000.f)
-   , SpringLength(80.f)
-   , SpringStiffness(0.5f)
-   , MaxLinkDistance(500.f)
-   , CenterForce(5.f)
+   : Repulsion(25000.f)
+   , CenterForce(0.5f)
 {}
 
 UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()

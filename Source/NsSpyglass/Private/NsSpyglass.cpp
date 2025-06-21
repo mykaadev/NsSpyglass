@@ -66,69 +66,42 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     };
 
     // Limits for the slider UI
-    const float MaxRepulsion = 500000.f;
-    const float MaxSpringLength = 500.f;
-    const float MaxStiffness = 1.f;
-    const float MaxLinkDist = 1000.f;
-    const float MaxCenterForce = 100.f;
+    const float MaxRepulsion = 50000.f;
+    const float MaxCenterForce = 2.f;
 
     TSharedRef<SDockTab> Tab = SNew(SDockTab)
-        .TabRole(ETabRole::NomadTab)
+    .TabRole(ETabRole::NomadTab)
+    [
+        SNew(SHorizontalBox)
+        + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
         [
-            SNew(SHorizontalBox)
-            + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+            SNew(SVerticalBox)
+            + SVerticalBox::Slot().AutoHeight()
             [
-                SNew(SVerticalBox)
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    SNew(STextBlock).Text(FText::FromString("Repulsion"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 1.f, MaxRepulsion)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Spring Length"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->SpringLength, 1.f, MaxSpringLength)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Spring Stiffness"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->SpringStiffness, 0.f, MaxStiffness)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Max Link Distance"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->MaxLinkDistance, 1.f, MaxLinkDist)
-                ]
-                + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
-                [
-                    SNew(STextBlock).Text(FText::FromString("Center Force"))
-                ]
-                + SVerticalBox::Slot().AutoHeight()
-                [
-                    Slider(UNsSpyglassSettings::GetSettings()->CenterForce, 1.f, MaxCenterForce)
-                ]
+                SNew(STextBlock).Text(FText::FromString("Repulsion"))
             ]
-            + SHorizontalBox::Slot().FillWidth(1.f)
+            + SVerticalBox::Slot().AutoHeight()
             [
-                SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
+                Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 1000.f, MaxRepulsion)
             ]
-            + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+            + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
             [
-                SAssignNew(InfoWidget, SPluginInfoWidget)
+                SNew(STextBlock).Text(FText::FromString("Center Force"))
             ]
-        ];
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                Slider(UNsSpyglassSettings::GetSettings()->CenterForce, 0.f, MaxCenterForce)
+            ]
+        ]
+        + SHorizontalBox::Slot().FillWidth(1.f)
+        [
+            SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
+        ]
+        + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+        [
+            SAssignNew(InfoWidget, SPluginInfoWidget)
+        ]
+    ];
 
     if (GraphWidget.IsValid() && InfoWidget.IsValid())
     {
