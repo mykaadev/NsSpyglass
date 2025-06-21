@@ -82,13 +82,19 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
                     // Store directed dependency
                     Nodes[i].Dependencies.AddUnique(*DepIdx);
+                    Nodes[*DepIdx].Dependents.AddUnique(i);
                 }
             }
         }
 
-        // Link to the root so everything stays connected
-        Nodes[i].Links.AddUnique(RootIndex);
-        Nodes[RootIndex].Links.AddUnique(i);
+        // If the plugin has no dependencies, connect it to the root
+        if (Nodes[i].Dependencies.Num() == 0)
+        {
+            Nodes[i].Links.AddUnique(RootIndex);
+            Nodes[RootIndex].Links.AddUnique(i);
+            Nodes[RootIndex].Dependencies.AddUnique(i); // arrow from root
+            Nodes[i].Dependents.AddUnique(RootIndex);
+        }
     }
 
     // Arrange nodes in a circle to avoid overlapping at the origin
@@ -131,19 +137,17 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     TSet<int32> Highlight;
     if (HoveredNode != INDEX_NONE)
     {
-        TArray<int32> Stack;
+        // Downstream dependencies
+        TArray<int32> Stack = Nodes[HoveredNode].Dependencies;
         TSet<int32> Visited;
-        Stack.Append(Nodes[HoveredNode].Dependencies);
-        for (int32 Dep : Nodes[HoveredNode].Dependencies)
+        for (int32 Dep : Stack)
         {
             Highlight.Add(Dep);
             Visited.Add(Dep);
         }
-
         while (Stack.Num() > 0)
         {
             int32 Cur = Stack.Pop();
-
             for (int32 Dep : Nodes[Cur].Dependencies)
             {
                 if (!Visited.Contains(Dep))
@@ -155,7 +159,28 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             }
         }
 
-        // ensure hovered node itself gets highlighted
+        // Upstream dependents
+        Stack = Nodes[HoveredNode].Dependents;
+        Visited.Empty();
+        for (int32 Dep : Stack)
+        {
+            Highlight.Add(Dep);
+            Visited.Add(Dep);
+        }
+        while (Stack.Num() > 0)
+        {
+            int32 Cur = Stack.Pop();
+            for (int32 Dep : Nodes[Cur].Dependents)
+            {
+                if (!Visited.Contains(Dep))
+                {
+                    Highlight.Add(Dep);
+                    Visited.Add(Dep);
+                    Stack.Add(Dep);
+                }
+            }
+        }
+
         Highlight.Add(HoveredNode);
     }
 

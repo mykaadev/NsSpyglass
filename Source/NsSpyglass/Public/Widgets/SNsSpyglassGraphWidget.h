@@ -21,6 +21,9 @@ struct FPluginNode
     /** Directed dependencies for this plugin. */
     TArray<int32> Dependencies;
 
+    /** Plugins that directly depend on this one. */
+    TArray<int32> Dependents;
+
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
 
