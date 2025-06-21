@@ -15,12 +15,22 @@
     <a href="https://github.com/mykaadev/NsSpyglass"><img src="https://img.shields.io/github/stars/mykaadev/NsSpyglass?style=plastic&logo=github" alt="GitHub Stars"></a>
     <a href="https://twitter.com/mykaadev/"><img src="https://img.shields.io/twitter/follow/mykaadev?style=plastic&logo=x" alt="Twitter Follow"></a>
 
+<p style="display:none;">
+  <a href="#-summary">👀 Summary</a> •
+  <a href="#-features">📦 Features</a> •
+  <a href="#-requirements">⚙️ Requirements</a> •
+  <a href="#-installation">🛠️ Installation</a> •
+  <a href="#-getting-started">🚀 Getting Started</a> •
+  <a href="#-credits">❤️ Credits</a> •
+  <a href="#-support">📞 Support</a> •
+  <a href="#-license">📃 License</a>
+</p>
 <a href="https://buymeacoffee.com/mykaadev"><img src="https://www.svgrepo.com/show/476855/coffee-to-go.svg" alt="Coffee" width="50px"></a>
 <p><b>Buy me a coffee!</b></p>
 </div>
 <!-- GH_ONLY_END -->
 
-## 👀 Overview
+## 👀 Summary
 NsSpyglass is a lightweight Unreal Engine editor plugin that builds an interactive graph showing how your plugins depend on one another. Hover over a node to see detailed information, pan around the view and tweak layout forces to suit your preferences.
 
 <div align="center">
