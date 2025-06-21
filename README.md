@@ -31,7 +31,7 @@
 <!-- GH_ONLY_END -->
 
 ## 👀 Summary
-NsTwee is a small yet powerful tweening framework for Unreal Engine. It allows smooth interpolation of floats, vectors and quaternions using a rich set of easing functions. Tweens can be controlled entirely through C++ or Blueprint nodes.
+NsSpyglass is a small yet powerful plugin dependency viewer for Unreal Engine.
 
 ## 📦 Features
 - **Graph Viewer**: A Slate-based force-directed graph viewer
