@@ -27,6 +27,9 @@ struct FPluginNode
     /** Color assigned to this node's group. */
     FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.1f);
 
+    /** When true, the node will remain stationary during simulation. */
+    bool bFixed = false;
+
 
     /** Plugin reference used for detailed information. */
     TSharedPtr<IPlugin> Plugin;
@@ -96,6 +99,12 @@ private:
 
     /** Whether the user is currently panning the view. */
     mutable bool bIsPanning = false;
+
+    /** Whether a node is currently being dragged. */
+    mutable bool bIsDragging = false;
+
+    /** Index of the node currently dragged by the user. */
+    mutable int32 DraggedNode = INDEX_NONE;
 
 
     /** Index of the node currently hovered by the mouse. */

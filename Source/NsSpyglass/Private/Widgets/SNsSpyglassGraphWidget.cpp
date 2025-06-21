@@ -32,6 +32,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     RootNode.Name = TEXT("Root");
     RootNode.Position = FVector2D::ZeroVector;
     RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
+    RootNode.bFixed = true;
     RootIndex = Nodes.Add(RootNode);
     NameToIndex.Add(RootNode.Name, RootIndex);
 
@@ -43,6 +44,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         Node.Plugin = Plugin;
         Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
         Node.Position = FVector2D::ZeroVector;
+        Node.bFixed = false;
 
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         const FString Category = Desc.Category.IsEmpty() ? TEXT("Misc") : Desc.Category;
@@ -202,23 +204,21 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             TArray<FVector2D> LinePoints{Start, End};
             FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, LineColor, true, Thickness);
 
-            // Arrowhead uses color of dependency
-            FLinearColor ArrowColor = Nodes[Link].Color;
-            if (!bHighlighted)
+            if (bHighlighted)
             {
-                ArrowColor.A = 0.05f;
+                // Arrowhead uses color of dependency
+                FLinearColor ArrowColor = Nodes[Link].Color;
+                const float ArrowSize = 8.f * ZoomScale;
+                const FVector2D Perp(-Dir.Y, Dir.X);
+                const FVector2D Tip = End;
+                const FVector2D ArrowP1 = Tip - Dir * ArrowSize + Perp * ArrowSize * 0.5f;
+                const FVector2D ArrowP2 = Tip - Dir * ArrowSize - Perp * ArrowSize * 0.5f;
+
+                TArray<FVector2D> Arrow1{ArrowP1, Tip};
+                TArray<FVector2D> Arrow2{ArrowP2, Tip};
+                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, ArrowColor, true, Thickness);
+                FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, ArrowColor, true, Thickness);
             }
-
-            const float ArrowSize = 8.f * ZoomScale;
-            const FVector2D Perp(-Dir.Y, Dir.X);
-            const FVector2D Tip = End;
-            const FVector2D ArrowP1 = Tip - Dir * ArrowSize + Perp * ArrowSize * 0.5f;
-            const FVector2D ArrowP2 = Tip - Dir * ArrowSize - Perp * ArrowSize * 0.5f;
-
-            TArray<FVector2D> Arrow1{ArrowP1, Tip};
-            TArray<FVector2D> Arrow2{ArrowP2, Tip};
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow1, ESlateDrawEffect::None, ArrowColor, true, Thickness);
-            FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), Arrow2, ESlateDrawEffect::None, ArrowColor, true, Thickness);
         }
     }
 
@@ -285,8 +285,25 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
 FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ||
-        MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+
+    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+    {
+        int32 Hit = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
+        if (Hit != INDEX_NONE)
+        {
+            bIsDragging = true;
+            DraggedNode = Hit;
+            Nodes[Hit].bFixed = true;
+            LastMousePos = LocalPos;
+            return FReply::Handled();
+        }
+
+        bIsPanning = true;
+        LastMousePos = MouseEvent.GetScreenSpacePosition();
+        return FReply::Handled();
+    }
+    else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = true;
         LastMousePos = MouseEvent.GetScreenSpacePosition();
@@ -298,8 +315,18 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, co
 
 FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ||
-        MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+    {
+        if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
+        {
+            Nodes[DraggedNode].bFixed = false;
+        }
+        bIsDragging = false;
+        DraggedNode = INDEX_NONE;
+        bIsPanning = false;
+        return FReply::Handled();
+    }
+    else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = false;
         return FReply::Handled();
@@ -312,7 +339,14 @@ FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FP
 {
     const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-    if (bIsPanning)
+    if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
+    {
+        const FVector2D Delta = (LocalPos - LastMousePos) / ZoomAmount;
+        Nodes[DraggedNode].Position += Delta;
+        LastMousePos = LocalPos;
+        return FReply::Handled();
+    }
+    else if (bIsPanning)
     {
         const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - LastMousePos;
         ViewOffset += Delta;
@@ -447,9 +481,9 @@ namespace
         const float Step = DeltaTime * 5.f;
         for (int32 i = 0; i < Num; ++i)
         {
-            if (i == RootIndex)
+            if (i == RootIndex || Nodes[i].bFixed)
             {
-                continue; // keep root node anchored
+                continue; // keep anchored nodes stationary
             }
 
             Nodes[i].Position += (Displacement[i] / Mass[i]) * Step;
