@@ -67,11 +67,8 @@ The plugin scans your project and displays an interactive graph of all plugins a
 ### Understanding Dependencies
 Each node represents a plugin. Lines between nodes show that one plugin references another. Use this view to quickly spot missing references or circular dependencies.
 
-### Tutorial Videos
-Video walkthroughs are available on YouTube: [NsSpyglass Tutorials](https://www.youtube.com/playlist?list=PL1234567890)
-
 ### Additional Help
-If you run into issues, open an issue on GitHub or contact the maintainer via the profile page.
+If you run into issues, open an issue on GitHub :)
 
 <!-- GH_ONLY_START -->
 ## ❤️ Credits
