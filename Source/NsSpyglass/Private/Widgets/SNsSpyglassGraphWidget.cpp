@@ -186,8 +186,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         Highlight.Add(HoveredNode);
     }
 
-    // Draw edges with arrowheads pointing to dependencies
-    const float ZoomScale = FMath::Clamp(FMath::Sqrt(ZoomAmount), 0.5f, 1.5f);
+    // Draw edges with arrowheads pointing to dependencies. Node and text sizes
+    // should follow the current zoom factor so zooming in enlarges them.
+    const float ZoomScale = ZoomAmount;
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
@@ -298,6 +299,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         // Scale text with zoom so names remain legible when zoomed in.
         const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
         const float TextScale = BaseScale * ZoomScale;
+        const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
         const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
 
         FSlateDrawElement::MakeText(
@@ -307,7 +309,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             Node.Name,
             Font,
             ESlateDrawEffect::None,
-            FLinearColor::White
+            FLinearColor(1.f, 1.f, 1.f, TextAlpha)
         );
     }
 
