@@ -31,7 +31,8 @@
 <!-- GH_ONLY_END -->
 
 ## 👀 Summary
-NsSpyglass is a lightweight Unreal Engine editor plugin that builds an interactive graph showing how your plugins depend on one another. Hover over a node to see detailed information, pan around the view and tweak layout forces to suit your preferences.
+Spyglass is a lightweight Unreal Engine editor plugin that builds an interactive graph showing how your plugins depend on one another. 
+Hover a node to see detailed information, pan around the view and tweak layout forces to suit your preferences.
 
 <div align="center">
   <img src="https://github.com/mykaadev/NsSpyglass/blob/main/Resources/ShowcaseGraphOut.gif" width="250" /> &nbsp;
