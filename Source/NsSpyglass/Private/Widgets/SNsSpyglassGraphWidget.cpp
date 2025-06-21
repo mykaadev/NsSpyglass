@@ -88,12 +88,14 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
         }
 
         // If the plugin has no dependencies, connect it to the root
+        // so the root appears as an upstream dependency.
         if (Nodes[i].Dependencies.Num() == 0)
         {
             Nodes[i].Links.AddUnique(RootIndex);
             Nodes[RootIndex].Links.AddUnique(i);
-            Nodes[RootIndex].Dependencies.AddUnique(i); // arrow from root
-            Nodes[i].Dependents.AddUnique(RootIndex);
+            // The plugin depends on the root, so the arrow points to the root.
+            Nodes[i].Dependencies.AddUnique(RootIndex);
+            Nodes[RootIndex].Dependents.AddUnique(i);
         }
     }
 
@@ -292,13 +294,16 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
         const FSlateFontInfo Font = FCoreStyle::Get().GetFontStyle("NormalFont");
         const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Node.Name, Font);
-        const float Scale = FMath::Min(1.f, (Size - 8.f) / TextSize.X);
-        const FVector2D Offset((Size - TextSize.X * Scale) * 0.5f, (Size - TextSize.Y * Scale) * 0.5f);
+
+        // Scale text with zoom so names remain legible when zoomed in.
+        const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
+        const float TextScale = BaseScale * ZoomScale;
+        const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
 
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId + 2,
-            AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(Scale, DrawPos + Offset)),
+            AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextScale, DrawPos + Offset)),
             Node.Name,
             Font,
             ESlateDrawEffect::None,
