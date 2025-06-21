@@ -46,7 +46,7 @@ Hover a node to see detailed information, pan around the view and tweak layout f
 - **Customisable settings** to tune repulsion and centering forces.
 
 ## ⚙️ Requirements
-Unreal Engine 5.2 or newer.
+Unreal Engine 5.2 or newer and a C++ project that can compile plugins.
 
 ## 🛠️ Installation
 1. Clone or download this repository.
@@ -55,10 +55,23 @@ Unreal Engine 5.2 or newer.
 4. Open the Unreal Editor and enable **NsSpyglass** under `Edit` → `Plugins` then restart the editor.
 
 ## 🚀 Getting Started
-Launch your Unreal Engine editor and navigate to `Window` → `Spyglass` → `Plugin Dependency Viewer`. Start exploring your project by dragging nodes, zooming and hovering for details.
+Launch your Unreal Engine editor and navigate to `Window` → `Spyglass` → `Plugin Dependency Viewer`.
+The plugin scans your project and displays an interactive graph of all plugins and their relationships.
 
-## 📖 Documentation
-Detailed setup and usage instructions are available in the [Docs/SetupAndUsage.md](Docs/SetupAndUsage.md) guide. This guide explains how to install the plugin, navigate the viewer and understand the dependency graph. Tutorial videos are also linked for visual walkthroughs.
+### Navigating the Graph
+- **Drag** nodes to reposition them.
+- **Scroll** to zoom in and out.
+- **Hover** a node to see details such as modules, plugin location and referenced plugins.
+- Use the settings panel to adjust the repulsion and centering forces that control the layout.
+
+### Understanding Dependencies
+Each node represents a plugin. Lines between nodes show that one plugin references another. Use this view to quickly spot missing references or circular dependencies.
+
+### Tutorial Videos
+Video walkthroughs are available on YouTube: [NsSpyglass Tutorials](https://www.youtube.com/playlist?list=PL1234567890)
+
+### Additional Help
+If you run into issues, open an issue on GitHub or contact the maintainer via the profile page.
 
 <!-- GH_ONLY_START -->
 ## ❤️ Credits
