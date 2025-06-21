@@ -37,8 +37,6 @@ NsSpyglass is a small yet powerful plugin dependency viewer for Unreal Engine.
 - **Graph Viewer**: A Slate-based force-directed graph viewer
 - **Custom Graph Settings**: Adjust the forces of your graph
 
-[![Watch the video](https://github.com/mykaadev/NsSpyglass/blob/main/Resources/Banner.png)](https://github.com/mykaadev/NsSpyglass/blob/main/Resources/Showcase.mp4)
-
 ## ⚙️ Requirements
 Unreal Engine 5.2+
 
