@@ -2,7 +2,7 @@
 <h1 align="center">
   <br>
   <a href="https://github.com/mykaadev/NsSpyglass">
-    <img src="https://github.com/mykaadev/NsSpyglass/blob/cc9e0b441a9305994196757e401b1465734f7954/Resources/Banner.png" alt="NsSpyglass" width="400">
+    <img src="https://github.com/mykaadev/NsSpyglass/blob/main/Resources/Banner.png" alt="NsSpyglass" width="400">
   </a>
 </h1>
 
