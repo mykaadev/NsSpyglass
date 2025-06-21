@@ -206,8 +206,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
             if (bHighlighted)
             {
-                // Arrowhead uses color of dependency
+                // Arrowhead uses color of dependency with full opacity
                 FLinearColor ArrowColor = Nodes[Link].Color;
+                ArrowColor.A = 1.f;
                 const float ArrowSize = 8.f * ZoomScale;
                 const FVector2D Perp(-Dir.Y, Dir.X);
                 const FVector2D Tip = End;
@@ -296,18 +297,18 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, co
             DraggedNode = Hit;
             Nodes[Hit].bFixed = true;
             LastMousePos = LocalPos;
-            return FReply::Handled();
+            return FReply::Handled().CaptureMouse(SharedThis(this));
         }
 
         bIsPanning = true;
         LastMousePos = MouseEvent.GetScreenSpacePosition();
-        return FReply::Handled();
+        return FReply::Handled().CaptureMouse(SharedThis(this));
     }
     else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = true;
         LastMousePos = MouseEvent.GetScreenSpacePosition();
-        return FReply::Handled();
+        return FReply::Handled().CaptureMouse(SharedThis(this));
     }
 
     return FReply::Unhandled();
@@ -324,12 +325,12 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, cons
         bIsDragging = false;
         DraggedNode = INDEX_NONE;
         bIsPanning = false;
-        return FReply::Handled();
+        return FReply::Handled().ReleaseMouseCapture();
     }
     else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
     {
         bIsPanning = false;
-        return FReply::Handled();
+        return FReply::Handled().ReleaseMouseCapture();
     }
 
     return FReply::Unhandled();
