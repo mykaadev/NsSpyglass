@@ -50,11 +50,15 @@ Unreal Engine 5.2 or newer.
 
 ## 🛠️ Installation
 1. Clone or download this repository.
-2. Copy the `NsSpyglass` folder into your project's `Plugins` directory.
-3. Generate project files and enable the plugin.
+2. Copy the `NsSpyglass` folder into your project's `Plugins` directory. Create the `Plugins` folder if it does not exist.
+3. Regenerate your project files so the engine can find the new plugin.
+4. Open the Unreal Editor and enable **NsSpyglass** under `Edit` → `Plugins` then restart the editor.
 
 ## 🚀 Getting Started
 Launch your Unreal Engine editor and navigate to `Window` → `Spyglass` → `Plugin Dependency Viewer`. Start exploring your project by dragging nodes, zooming and hovering for details.
+
+## 📖 Documentation
+Detailed setup and usage instructions are available in the [Docs/SetupAndUsage.md](Docs/SetupAndUsage.md) guide. This guide explains how to install the plugin, navigate the viewer and understand the dependency graph. Tutorial videos are also linked for visual walkthroughs.
 
 <!-- GH_ONLY_START -->
 ## ❤️ Credits
