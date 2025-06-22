@@ -279,9 +279,9 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
             if (bHighlighted)
             {
-                // Arrowhead uses color of dependency with full opacity
+                // Arrowhead uses the dependency color with upstream arrows dimmer
                 FLinearColor ArrowColor = Nodes[Link].Color;
-                ArrowColor.A = 1.f;
+                ArrowColor.A = Upstream.Contains(i) ? 0.5f : 1.f;
                 const float ArrowSize = 8.f * ZoomScale;
                 const FVector2D Perp(-Dir.Y, Dir.X);
                 const FVector2D Tip = End;
@@ -328,7 +328,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         FLinearColor OutlineColor = bOutlined ? Node.Color : FLinearColor::Transparent;
         if (bOutlined)
         {
-            OutlineColor.A = 1.f;
+            OutlineColor.A = 0.5f;
         }
         const float OutlineThickness = bOutlined ? 2.f : 0.f;
 
