@@ -177,7 +177,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     }
     ++LayerId;
 
-    TSet<int32> Highlight;
+    TSet<int32> Downstream;
+    TSet<int32> Upstream;
     if (HoveredNode != INDEX_NONE)
     {
         // Downstream dependencies
@@ -185,7 +186,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         TSet<int32> Visited;
         for (int32 Dep : Stack)
         {
-            Highlight.Add(Dep);
+            Downstream.Add(Dep);
             Visited.Add(Dep);
         }
         while (Stack.Num() > 0)
@@ -195,7 +196,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             {
                 if (!Visited.Contains(Dep))
                 {
-                    Highlight.Add(Dep);
+                    Downstream.Add(Dep);
                     Visited.Add(Dep);
                     Stack.Add(Dep);
                 }
@@ -207,7 +208,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         Visited.Empty();
         for (int32 Dep : Stack)
         {
-            Highlight.Add(Dep);
+            Upstream.Add(Dep);
             Visited.Add(Dep);
         }
         while (Stack.Num() > 0)
@@ -217,15 +218,18 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             {
                 if (!Visited.Contains(Dep))
                 {
-                    Highlight.Add(Dep);
+                    Upstream.Add(Dep);
                     Visited.Add(Dep);
                     Stack.Add(Dep);
                 }
             }
         }
 
-        Highlight.Add(HoveredNode);
+        Downstream.Add(HoveredNode);
     }
+
+    TSet<int32> Highlight = Downstream;
+    Highlight.Append(Upstream);
 
     // Draw edges with arrowheads pointing to dependencies. Node and text sizes
     // should follow the current zoom factor so zooming in enlarges them.
@@ -307,13 +311,17 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             LerpColor.A = BoxColor.A;
             BoxColor = LerpColor;
         }
-        if (Highlight.Contains(i))
+        if (Downstream.Contains(i))
         {
             BoxColor.A = 0.2f;
         }
-        else
+        else if (Upstream.Contains(i))
         {
             BoxColor.A = 0.1f;
+        }
+        else
+        {
+            BoxColor.A = 0.05f;
         }
 
         const bool bOutlined = Highlight.Contains(i);
