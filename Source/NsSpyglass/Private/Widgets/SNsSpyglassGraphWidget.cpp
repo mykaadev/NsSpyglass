@@ -5,6 +5,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "Rendering/DrawElements.h"
 #include "Settings/NsSpyglassSettings.h"
+#include "Brushes/SlateColorBrush.h"
+#include "Styling/CoreStyle.h"
 
 SNsSpyglassGraphWidget::SNsSpyglassGraphWidget()
     : ViewOffset(FVector2D::ZeroVector)
@@ -112,6 +114,26 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     }
 }
 
+void SNsSpyglassGraphWidget::InitStars(const FVector2D& ViewSize) const
+{
+    if (Stars.Num() == 0 || !ViewSize.Equals(StarsViewSize))
+    {
+        StarsViewSize = ViewSize;
+        Stars.Empty();
+        const int32 NumStars = 150;
+        for (int32 i = 0; i < NumStars; ++i)
+        {
+            FBackgroundStar Star;
+            Star.Position.X = FMath::FRandRange(-ViewSize.X, ViewSize.X);
+            Star.Position.Y = FMath::FRandRange(-ViewSize.Y, ViewSize.Y);
+            Star.Alpha = 0.f;
+            Star.TargetAlpha = FMath::FRandRange(0.2f, 1.f);
+            Star.FadeSpeed = FMath::FRandRange(0.5f, 1.5f);
+            Stars.Add(Star);
+        }
+    }
+}
+
 int32 SNsSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const
 {
     const FVector2D Center = ViewSize * 0.5f;
@@ -135,7 +157,25 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         BuildNodes(AllottedGeometry.GetLocalSize());
     }
 
+    InitStars(AllottedGeometry.GetLocalSize());
+
     const FVector2D Center = AllottedGeometry.GetLocalSize() * 0.5f;
+
+    const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
+    const FVector2D StarOffset = ViewOffset * 0.1f;
+    for (const FBackgroundStar& Star : Stars)
+    {
+        const FVector2D DrawPos = Center + StarOffset + Star.Position - FVector2D(1.f, 1.f);
+        FSlateDrawElement::MakeBox(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(FVector2D(2.f, 2.f), FSlateLayoutTransform(DrawPos)),
+            WhiteBrush,
+            ESlateDrawEffect::None,
+            FLinearColor(1.f, 1.f, 1.f, Star.Alpha * 0.5f)
+        );
+    }
+    ++LayerId;
 
     TSet<int32> Highlight;
     if (HoveredNode != INDEX_NONE)
@@ -528,6 +568,26 @@ namespace
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
-    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, InDeltaTime);
+    const float Delta = FMath::Min(InDeltaTime, 0.05f);
+    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, Delta);
+
+    for (FBackgroundStar& Star : Stars)
+    {
+        Star.Alpha = FMath::FInterpTo(Star.Alpha, Star.TargetAlpha, Delta, Star.FadeSpeed);
+        if (FMath::IsNearlyEqual(Star.Alpha, Star.TargetAlpha, 0.01f))
+        {
+            if (Star.TargetAlpha > 0.f)
+            {
+                Star.TargetAlpha = 0.f;
+            }
+            else
+            {
+                Star.Position.X = FMath::FRandRange(-StarsViewSize.X, StarsViewSize.X);
+                Star.Position.Y = FMath::FRandRange(-StarsViewSize.Y, StarsViewSize.Y);
+                Star.TargetAlpha = FMath::FRandRange(0.2f, 1.f);
+                Star.FadeSpeed = FMath::FRandRange(0.5f, 1.5f);
+            }
+        }
+    }
 }
 
