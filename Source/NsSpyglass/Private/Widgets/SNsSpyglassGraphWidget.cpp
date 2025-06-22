@@ -162,7 +162,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     const FVector2D Center = AllottedGeometry.GetLocalSize() * 0.5f;
 
     const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
-    const FVector2D StarOffset = -ViewOffset * 0.1f;
+    const FVector2D StarOffset = ViewOffset * 0.1f;
     for (const FBackgroundStar& Star : Stars)
     {
         const FVector2D DrawPos = Center + StarOffset + Star.Position - FVector2D(1.f, 1.f);
@@ -568,11 +568,12 @@ namespace
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
-    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, InDeltaTime);
+    const float Delta = FMath::Min(InDeltaTime, 0.05f);
+    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, Delta);
 
     for (FBackgroundStar& Star : Stars)
     {
-        Star.Alpha = FMath::FInterpTo(Star.Alpha, Star.TargetAlpha, InDeltaTime, Star.FadeSpeed);
+        Star.Alpha = FMath::FInterpTo(Star.Alpha, Star.TargetAlpha, Delta, Star.FadeSpeed);
         if (FMath::IsNearlyEqual(Star.Alpha, Star.TargetAlpha, 0.01f))
         {
             if (Star.TargetAlpha > 0.f)
