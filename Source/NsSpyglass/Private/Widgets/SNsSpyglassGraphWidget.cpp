@@ -328,7 +328,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         FLinearColor OutlineColor = bOutlined ? Node.Color : FLinearColor::Transparent;
         if (bOutlined)
         {
-            OutlineColor.A = 1.f;
+            OutlineColor.A = 0.5f;
         }
         const float OutlineThickness = bOutlined ? 2.f : 0.f;
 
