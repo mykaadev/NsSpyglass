@@ -162,7 +162,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     const FVector2D Center = AllottedGeometry.GetLocalSize() * 0.5f;
 
     const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
-    const FVector2D StarOffset = -ViewOffset * 0.1f;
+    const FVector2D StarOffset = ViewOffset * 0.1f;
     for (const FBackgroundStar& Star : Stars)
     {
         const FVector2D DrawPos = Center + StarOffset + Star.Position - FVector2D(1.f, 1.f);
@@ -177,7 +177,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     }
     ++LayerId;
 
-    TSet<int32> Highlight;
+    TSet<int32> Downstream;
+    TSet<int32> Upstream;
     if (HoveredNode != INDEX_NONE)
     {
         // Downstream dependencies
@@ -185,7 +186,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         TSet<int32> Visited;
         for (int32 Dep : Stack)
         {
-            Highlight.Add(Dep);
+            Downstream.Add(Dep);
             Visited.Add(Dep);
         }
         while (Stack.Num() > 0)
@@ -195,7 +196,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             {
                 if (!Visited.Contains(Dep))
                 {
-                    Highlight.Add(Dep);
+                    Downstream.Add(Dep);
                     Visited.Add(Dep);
                     Stack.Add(Dep);
                 }
@@ -207,7 +208,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         Visited.Empty();
         for (int32 Dep : Stack)
         {
-            Highlight.Add(Dep);
+            Upstream.Add(Dep);
             Visited.Add(Dep);
         }
         while (Stack.Num() > 0)
@@ -217,15 +218,18 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             {
                 if (!Visited.Contains(Dep))
                 {
-                    Highlight.Add(Dep);
+                    Upstream.Add(Dep);
                     Visited.Add(Dep);
                     Stack.Add(Dep);
                 }
             }
         }
 
-        Highlight.Add(HoveredNode);
+        Downstream.Add(HoveredNode);
     }
+
+    TSet<int32> Highlight = Downstream;
+    Highlight.Append(Upstream);
 
     // Draw edges with arrowheads pointing to dependencies. Node and text sizes
     // should follow the current zoom factor so zooming in enlarges them.
@@ -307,13 +311,17 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             LerpColor.A = BoxColor.A;
             BoxColor = LerpColor;
         }
-        if (Highlight.Contains(i))
+        if (Downstream.Contains(i))
         {
             BoxColor.A = 0.2f;
         }
-        else
+        else if (Upstream.Contains(i))
         {
             BoxColor.A = 0.1f;
+        }
+        else
+        {
+            BoxColor.A = 0.05f;
         }
 
         const bool bOutlined = Highlight.Contains(i);
@@ -568,11 +576,12 @@ namespace
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
-    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, InDeltaTime);
+    const float Delta = FMath::Min(InDeltaTime, 0.05f);
+    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, Delta);
 
     for (FBackgroundStar& Star : Stars)
     {
-        Star.Alpha = FMath::FInterpTo(Star.Alpha, Star.TargetAlpha, InDeltaTime, Star.FadeSpeed);
+        Star.Alpha = FMath::FInterpTo(Star.Alpha, Star.TargetAlpha, Delta, Star.FadeSpeed);
         if (FMath::IsNearlyEqual(Star.Alpha, Star.TargetAlpha, 0.01f))
         {
             if (Star.TargetAlpha > 0.f)
