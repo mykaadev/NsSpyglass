@@ -295,23 +295,57 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         );
 
         const FSlateFontInfo Font = FCoreStyle::Get().GetFontStyle("NormalFont");
-        const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Node.Name, Font);
 
-        // Scale text with zoom so names remain legible when zoomed in.
-        const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
+        FString Line1 = Node.Name;
+        FString Line2;
+        if (Node.Name.Len() > 12)
+        {
+            Line2 = Node.Name;
+            Line1.Empty();
+            for (const TCHAR* Ch = *Node.Name; *Ch; ++Ch)
+            {
+                if (FChar::IsUpper(*Ch))
+                {
+                    Line1.AppendChar(*Ch);
+                }
+            }
+        }
+
+        auto* Measure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+        const FVector2D Size1 = Measure->Measure(Line1, Font);
+        const FVector2D Size2 = Line2.IsEmpty() ? FVector2D::ZeroVector : Measure->Measure(Line2, Font);
+
+        const float MaxWidth = FMath::Max(Size1.X, Size2.X);
+        const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / MaxWidth);
         const float TextScale = BaseScale * ZoomScale;
+        const float SmallScale = Line2.IsEmpty() ? TextScale : TextScale * 0.75f;
         const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
-        const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
+
+        const float TotalHeight = Size1.Y * TextScale + Size2.Y * SmallScale;
+        const FVector2D Offset((Size - MaxWidth * TextScale) * 0.5f, (Size - TotalHeight) * 0.5f);
 
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId + 2,
-            AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextScale, DrawPos + Offset)),
-            Node.Name,
+            AllottedGeometry.ToPaintGeometry(Size1, FSlateLayoutTransform(TextScale, DrawPos + Offset)),
+            Line1,
             Font,
             ESlateDrawEffect::None,
             FLinearColor(1.f, 1.f, 1.f, TextAlpha)
         );
+
+        if (!Line2.IsEmpty())
+        {
+            FSlateDrawElement::MakeText(
+                OutDrawElements,
+                LayerId + 2,
+                AllottedGeometry.ToPaintGeometry(Size2, FSlateLayoutTransform(SmallScale, DrawPos + Offset + FVector2D(0.f, Size1.Y * TextScale))),
+                Line2,
+                Font,
+                ESlateDrawEffect::None,
+                FLinearColor(1.f, 1.f, 1.f, TextAlpha)
+            );
+        }
     }
 
     return LayerId + 3;
@@ -437,6 +471,12 @@ void SNsSpyglassGraphWidget::RebuildGraph()
 void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
 {
     OnNodeHovered = InDelegate;
+}
+
+void SNsSpyglassGraphWidget::SetZenMode(bool bInZenMode)
+{
+    bZenMode = bInZenMode;
+    RebuildGraph();
 }
 
 namespace

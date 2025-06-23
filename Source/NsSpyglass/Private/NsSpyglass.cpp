@@ -5,6 +5,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Layout/Visibility.h"
 #include "Widgets/SNsSpyglassGraphWidget.h"
 #include "Widgets/SPluginInfoWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -49,17 +50,18 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
 {
     TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
     TSharedPtr<SPluginInfoWidget> InfoWidget;
+    TSharedPtr<SVerticalBox> SettingsBox;
 
     // Helper that binds a slider to a settings value
     auto Slider = [](float& Value, const float Min, const float Max)
     {
         return SNew(SSpinBox<float>)
-        .Value(Value)
+        .Value_Lambda([&Value]() { return Value; })
         .MaxValue(Max)
         .MinValue(Min)
         .MinSliderValue(Min)
         .MaxSliderValue(Max)
-        .OnValueChanged_Lambda([Max, &Value](const float V)
+        .OnValueChanged_Lambda([&Value](const float V)
         {
             Value = V;
         });
@@ -75,7 +77,31 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
         SNew(SHorizontalBox)
         + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
         [
-            SNew(SVerticalBox)
+            SAssignNew(SettingsBox, SVerticalBox)
+            + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0.f, 0.f, 0.f, 4.f))
+            [
+                SNew(SCheckBox)
+                .IsChecked(ECheckBoxState::Unchecked)
+                .OnCheckStateChanged_Lambda([GraphWidget, SettingsBox, InfoWidget](ECheckBoxState State)
+                {
+                    const bool bZen = State == ECheckBoxState::Checked;
+                    if (GraphWidget.IsValid())
+                    {
+                        GraphWidget->SetZenMode(bZen);
+                    }
+                    if (SettingsBox.IsValid())
+                    {
+                        SettingsBox->SetVisibility(bZen ? EVisibility::Collapsed : EVisibility::Visible);
+                    }
+                    if (InfoWidget.IsValid())
+                    {
+                        InfoWidget->SetVisibility(bZen ? EVisibility::Collapsed : EVisibility::Visible);
+                    }
+                })
+                [
+                    SNew(STextBlock).Text(FText::FromString("Zen Mode"))
+                ]
+            ]
             + SVerticalBox::Slot().AutoHeight()
             [
                 SNew(STextBlock).Text(FText::FromString("Repulsion"))

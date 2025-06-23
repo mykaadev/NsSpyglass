@@ -77,6 +77,9 @@ public:
     /** Clear and rebuild all nodes. */
     void RebuildGraph();
 
+    /** Enable or disable Zen mode. */
+    void SetZenMode(bool bInZenMode);
+
 private:
 
     /** Populate the node array by scanning loaded plugins. */
@@ -118,5 +121,8 @@ private:
 
     /** Delegate for hover updates. */
     FOnNodeHovered OnNodeHovered;
+
+    /** Whether Zen mode is active. */
+    bool bZenMode = false;
 };
 
