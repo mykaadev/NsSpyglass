@@ -52,20 +52,11 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     TSharedPtr<SNsSpyglassGraphWidget> GraphWidget;
     TSharedPtr<SPluginInfoWidget> InfoWidget;
 
-    // Helper that binds a slider to a settings value
-    auto Slider = [](float& Value, const float Min, const float Max)
-    {
-        return SNew(SSpinBox<float>)
-        .Value(Value)
-        .MaxValue(Max)
-        .MinValue(Min)
-        .MinSliderValue(Min)
-        .MaxSliderValue(Max)
-        .OnValueChanged_Lambda([Max, &Value](const float V)
-        {
-            Value = V;
-        });
-    };
+    // Spin boxes that expose the runtime settings. The widgets are stored so
+    // their values can be updated when Zen mode toggles.
+    TSharedPtr<SSpinBox<float>> RepulsionSpinBox;
+    TSharedPtr<SSpinBox<float>> CenterForceSpinBox;
+    TSharedPtr<SSpinBox<float>> AttractionSpinBox;
 
     // Limits for the slider UI
     const float MaxRepulsion = 50000.f;
@@ -85,7 +76,16 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             ]
             + SVerticalBox::Slot().AutoHeight()
             [
-                Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 10000.f, MaxRepulsion)
+                SAssignNew(RepulsionSpinBox, SSpinBox<float>)
+                .Value(UNsSpyglassSettings::GetSettings()->Repulsion)
+                .MaxValue(MaxRepulsion)
+                .MinValue(10000.f)
+                .MinSliderValue(10000.f)
+                .MaxSliderValue(MaxRepulsion)
+                .OnValueChanged_Lambda([](const float V)
+                {
+                    UNsSpyglassSettings::GetSettings()->Repulsion = V;
+                })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
             [
@@ -93,7 +93,16 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             ]
             + SVerticalBox::Slot().AutoHeight()
             [
-                Slider(UNsSpyglassSettings::GetSettings()->CenterForce, 0.f, MaxCenterForce)
+                SAssignNew(CenterForceSpinBox, SSpinBox<float>)
+                .Value(UNsSpyglassSettings::GetSettings()->CenterForce)
+                .MaxValue(MaxCenterForce)
+                .MinValue(0.f)
+                .MinSliderValue(0.f)
+                .MaxSliderValue(MaxCenterForce)
+                .OnValueChanged_Lambda([](const float V)
+                {
+                    UNsSpyglassSettings::GetSettings()->CenterForce = V;
+                })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
             [
@@ -101,7 +110,16 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             ]
             + SVerticalBox::Slot().AutoHeight()
             [
-                Slider(UNsSpyglassSettings::GetSettings()->AttractionScale, 1.f, MaxAttractionScale)
+                SAssignNew(AttractionSpinBox, SSpinBox<float>)
+                .Value(UNsSpyglassSettings::GetSettings()->AttractionScale)
+                .MaxValue(MaxAttractionScale)
+                .MinValue(1.f)
+                .MinSliderValue(1.f)
+                .MaxSliderValue(MaxAttractionScale)
+                .OnValueChanged_Lambda([](const float V)
+                {
+                    UNsSpyglassSettings::GetSettings()->AttractionScale = V;
+                })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
             [
@@ -114,7 +132,10 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 {
                     return UNsSpyglassSettings::GetSettings()->bZenMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
                 })
-                .OnCheckStateChanged_Lambda([&](ECheckBoxState InCheckBoxState)
+                .OnCheckStateChanged_Lambda([GraphWidget,
+                                           RepulsionSpinBox,
+                                           CenterForceSpinBox,
+                                           AttractionSpinBox](ECheckBoxState InCheckBoxState)
                 {
                     const bool bPreviousState = UNsSpyglassSettings::GetSettings()->bZenMode;
                     if (InCheckBoxState == ECheckBoxState::Checked)
@@ -131,9 +152,23 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                     }
 
                     UNsSpyglassSettings::GetSettings()->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
-                    if (bPreviousState != UNsSpyglassSettings::GetSettings()->bZenMode)
+
+                    if (RepulsionSpinBox.IsValid())
                     {
-                        // Rebuild Graph
+                        RepulsionSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->Repulsion);
+                    }
+                    if (CenterForceSpinBox.IsValid())
+                    {
+                        CenterForceSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->CenterForce);
+                    }
+                    if (AttractionSpinBox.IsValid())
+                    {
+                        AttractionSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->AttractionScale);
+                    }
+
+                    if (GraphWidget.IsValid() && bPreviousState != UNsSpyglassSettings::GetSettings()->bZenMode)
+                    {
+                        GraphWidget->RebuildGraph();
                     }
                 })
             ]
