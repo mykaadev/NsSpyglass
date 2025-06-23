@@ -34,4 +34,11 @@ public:
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float CenterForce;
 
+    /** Attraction Scale between nodes */
+    UPROPERTY(EditAnywhere, Config, Category="Layout")
+    float AttractionScale;
+
+    /** Zen Mode */
+    UPROPERTY(EditAnywhere, Config, Category="Layout")
+    bool bZenMode;
 };

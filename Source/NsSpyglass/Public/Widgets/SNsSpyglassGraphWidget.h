@@ -38,6 +38,22 @@ struct FPluginNode
     TSharedPtr<IPlugin> Plugin;
 };
 
+/** Background star used for the parallax backdrop. */
+struct FBackgroundStar
+{
+    /** Position relative to the center of the screen. */
+    FVector2D Position = FVector2D::ZeroVector;
+
+    /** Current opacity of the star. */
+    float Alpha = 0.f;
+
+    /** Desired opacity to interpolate toward. */
+    float TargetAlpha = 0.f;
+
+    /** Speed of the fade interpolation. */
+    float FadeSpeed = 1.f;
+};
+
 /**
  * Widget that displays all loaded plugins in a force-directed graph
  */
@@ -79,11 +95,17 @@ public:
 
 private:
 
+    /** Create random background stars. */
+    void InitStars(const FVector2D& ViewSize) const;
+
     /** Populate the node array by scanning loaded plugins. */
     void BuildNodes(const FVector2D& ViewSize) const;
 
     /** Return the index of the node under the cursor or INDEX_NONE. */
     int32 HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const;
+
+    /** Perform a single ForceAtlas2 iteration on the node array.*/
+    void RunForceAtlas2Step(TArray<FPluginNode>& Nodes, int32 RootIndex, float Repulsion, float Gravity, float DeltaTime);
 
 // Variables
 private:
@@ -118,5 +140,11 @@ private:
 
     /** Delegate for hover updates. */
     FOnNodeHovered OnNodeHovered;
+
+    /** Background stars shown behind the graph. */
+    mutable TArray<FBackgroundStar> Stars;
+
+    /** Cached size for generating star positions. */
+    mutable FVector2D StarsViewSize = FVector2D::ZeroVector;
 };
 

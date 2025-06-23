@@ -3,8 +3,10 @@
 #include "Settings/NsSpyglassSettings.h"
 
 UNsSpyglassSettings::UNsSpyglassSettings()
-   : Repulsion(25000.f)
-   , CenterForce(0.5f)
+	: Repulsion(25000.f)
+	, CenterForce(0.5f)
+	, AttractionScale(10.f)
+	, bZenMode(false)
 {}
 
 UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
