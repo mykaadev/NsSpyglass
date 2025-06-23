@@ -23,6 +23,7 @@ void SNsSpyglassGraphWidget::Construct(const FArguments& InArgs)
 void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 {
     Nodes.Reset();
+    RootIndex = INDEX_NONE;
 
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
@@ -72,9 +73,10 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     }
 
     // Fill in links
-    for (int32 i = 1; i < Nodes.Num(); ++i)
+    const int32 StartIdx = UNsSpyglassSettings::GetSettings()->bZenMode ? 1 : 0;
+    for (int32 i = StartIdx; i < Nodes.Num(); ++i)
     {
-        const TSharedRef<IPlugin>& Plugin = Plugins[i - 1];
+        const TSharedRef<IPlugin>& Plugin = Plugins[i - StartIdx];
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
         {
@@ -94,7 +96,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
         // If the plugin has no dependencies, connect it to the root
         // so the root appears as an upstream dependency.
-        if (UNsSpyglassSettings::GetSettings()->bZenMode)
+        if (UNsSpyglassSettings::GetSettings()->bZenMode && Nodes[i].Dependencies.Num() == 0)
         {
             if (Nodes[i].Dependencies.Num() == 0)
             {
@@ -111,8 +113,8 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     if (Nodes.Num() > 1)
     {
         const float Radius = 200.f;
-        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - 1);
-        for (int32 i = 1; i < Nodes.Num(); ++i)
+        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - StartIdx);
+        for (int32 i = StartIdx; i < Nodes.Num(); ++i)
         {
             const float Angle = Step * static_cast<float>(i - 1);
             Nodes[i].Position = FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
@@ -357,23 +359,75 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         );
 
         const FSlateFontInfo Font = FCoreStyle::Get().GetFontStyle("NormalFont");
-        const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(Node.Name, Font);
+        const TSharedRef<FSlateFontMeasure> Measure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-        // Scale text with zoom so names remain legible when zoomed in.
-        const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
-        const float TextScale = BaseScale * ZoomScale;
-        const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
-        const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
+        const bool bSplitName = Node.Name.Len() > 12;
+        if (bSplitName)
+        {
+            FString ShortName;
+            for (const TCHAR Ch : Node.Name)
+            {
+                if (FChar::IsUpper(Ch))
+                {
+                    ShortName.AppendChar(Ch);
+                }
+            }
+            if (ShortName.IsEmpty())
+            {
+                ShortName = Node.Name.Left(2).ToUpper();
+            }
 
-        FSlateDrawElement::MakeText(
-            OutDrawElements,
-            LayerId + 2,
-            AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextScale, DrawPos + Offset)),
-            Node.Name,
-            Font,
-            ESlateDrawEffect::None,
-            FLinearColor(1.f, 1.f, 1.f, TextAlpha)
-        );
+            const FVector2D ShortSize = Measure->Measure(ShortName, Font);
+            const FVector2D FullSize = Measure->Measure(Node.Name, Font);
+            const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / FMath::Max(ShortSize.X, FullSize.X));
+            const float ShortScale = BaseScale * ZoomScale;
+            const float FullScale = BaseScale * 0.6f * ZoomScale;
+            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
+
+            const float TotalHeight = ShortSize.Y * ShortScale + FullSize.Y * FullScale;
+            const float StartY = (Size - TotalHeight) * 0.5f;
+
+            FVector2D Offset((Size - ShortSize.X * ShortScale) * 0.5f, StartY);
+            FSlateDrawElement::MakeText(
+                OutDrawElements,
+                LayerId + 2,
+                AllottedGeometry.ToPaintGeometry(ShortSize, FSlateLayoutTransform(ShortScale, DrawPos + Offset)),
+                ShortName,
+                Font,
+                ESlateDrawEffect::None,
+                FLinearColor(1.f, 1.f, 1.f, TextAlpha)
+            );
+
+            Offset.X = (Size - FullSize.X * FullScale) * 0.5f;
+            Offset.Y = StartY + ShortSize.Y * ShortScale;
+            FSlateDrawElement::MakeText(
+                OutDrawElements,
+                LayerId + 2,
+                AllottedGeometry.ToPaintGeometry(FullSize, FSlateLayoutTransform(FullScale, DrawPos + Offset)),
+                Node.Name,
+                Font,
+                ESlateDrawEffect::None,
+                FLinearColor(1.f, 1.f, 1.f, TextAlpha)
+            );
+        }
+        else
+        {
+            const FVector2D TextSize = Measure->Measure(Node.Name, Font);
+            const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
+            const float TextScale = BaseScale * ZoomScale;
+            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
+            const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
+
+            FSlateDrawElement::MakeText(
+                OutDrawElements,
+                LayerId + 2,
+                AllottedGeometry.ToPaintGeometry(TextSize, FSlateLayoutTransform(TextScale, DrawPos + Offset)),
+                Node.Name,
+                Font,
+                ESlateDrawEffect::None,
+                FLinearColor(1.f, 1.f, 1.f, TextAlpha)
+            );
+        }
     }
 
     return LayerId + 3;
@@ -487,7 +541,7 @@ FReply SNsSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const F
 void SNsSpyglassGraphWidget::RecenterView()
 {
     ViewOffset = FVector2D::ZeroVector;
-    ZoomAmount = 1.f;
+    ZoomAmount = 0.75f;
 }
 
 void SNsSpyglassGraphWidget::RebuildGraph()
@@ -566,8 +620,8 @@ void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, in
             else
             {
                 const float AttractionScale = UNsSpyglassSettings::GetSettings()->AttractionScale;
-                Displacement[i] -= Delta * FMath::Loge(Dist) * AttractionScale;
-                Displacement[Link] += Delta * FMath::Loge(Dist) * AttractionScale;
+                Displacement[i] -= Delta * Dist * AttractionScale;
+                Displacement[Link] += Delta * Dist * AttractionScale;
             }
         }
     }
