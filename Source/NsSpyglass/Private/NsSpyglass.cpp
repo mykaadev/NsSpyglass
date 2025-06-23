@@ -116,20 +116,25 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 })
                 .OnCheckStateChanged_Lambda([&](ECheckBoxState InCheckBoxState)
                 {
+                    const bool bPreviousState = UNsSpyglassSettings::GetSettings()->bZenMode;
                     if (InCheckBoxState == ECheckBoxState::Checked)
                     {
-                        UNsSpyglassSettings::GetSettings()->Repulsion = 50000.f;
-                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.5f;
-                        UNsSpyglassSettings::GetSettings()->AttractionScale = 20.f;
+                        UNsSpyglassSettings::GetSettings()->Repulsion = 35000.f;
+                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.2f;
+                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.0f;
                     }
                     else
                     {
-                        UNsSpyglassSettings::GetSettings()->Repulsion = 50000.f;
-                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.2f;
-                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.f;
+                        UNsSpyglassSettings::GetSettings()->Repulsion = 35000.f;
+                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.1f;
+                        UNsSpyglassSettings::GetSettings()->AttractionScale = 40.f;
                     }
 
                     UNsSpyglassSettings::GetSettings()->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
+                    if (bPreviousState != UNsSpyglassSettings::GetSettings()->bZenMode)
+                    {
+                        // Rebuild Graph
+                    }
                 })
             ]
         ]

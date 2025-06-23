@@ -30,13 +30,16 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     TMap<FString, FLinearColor> CategoryColors;
 
     // Root node stays in the middle
-    FPluginNode RootNode;
-    RootNode.Name = TEXT("Root");
-    RootNode.Position = FVector2D::ZeroVector;
-    RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
-    RootNode.bFixed = true;
-    RootIndex = Nodes.Add(RootNode);
-    NameToIndex.Add(RootNode.Name, RootIndex);
+    if (UNsSpyglassSettings::GetSettings()->bZenMode)
+    {
+        FPluginNode RootNode;
+        RootNode.Name = TEXT("Root");
+        RootNode.Position = FVector2D::ZeroVector;
+        RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
+        RootNode.bFixed = true;
+        RootIndex = Nodes.Add(RootNode);
+        NameToIndex.Add(RootNode.Name, RootIndex);
+    }
 
     // Create nodes for plugins
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
