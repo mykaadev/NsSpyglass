@@ -23,6 +23,7 @@ void SNsSpyglassGraphWidget::Construct(const FArguments& InArgs)
 void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 {
     Nodes.Reset();
+    RootIndex = INDEX_NONE;
 
     const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
 
@@ -72,9 +73,10 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     }
 
     // Fill in links
-    for (int32 i = 1; i < Nodes.Num(); ++i)
+    const int32 StartIdx = UNsSpyglassSettings::GetSettings()->bZenMode ? 1 : 0;
+    for (int32 i = StartIdx; i < Nodes.Num(); ++i)
     {
-        const TSharedRef<IPlugin>& Plugin = Plugins[i - 1];
+        const TSharedRef<IPlugin>& Plugin = Plugins[i - StartIdx];
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
         {
@@ -94,7 +96,7 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
         // If the plugin has no dependencies, connect it to the root
         // so the root appears as an upstream dependency.
-        if (UNsSpyglassSettings::GetSettings()->bZenMode)
+        if (UNsSpyglassSettings::GetSettings()->bZenMode && Nodes[i].Dependencies.Num() == 0)
         {
             if (Nodes[i].Dependencies.Num() == 0)
             {
@@ -111,8 +113,8 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     if (Nodes.Num() > 1)
     {
         const float Radius = 200.f;
-        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - 1);
-        for (int32 i = 1; i < Nodes.Num(); ++i)
+        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - StartIdx);
+        for (int32 i = StartIdx; i < Nodes.Num(); ++i)
         {
             const float Angle = Step * static_cast<float>(i - 1);
             Nodes[i].Position = FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
@@ -539,7 +541,7 @@ FReply SNsSpyglassGraphWidget::OnMouseWheel(const FGeometry& MyGeometry, const F
 void SNsSpyglassGraphWidget::RecenterView()
 {
     ViewOffset = FVector2D::ZeroVector;
-    ZoomAmount = 1.f;
+    ZoomAmount = 0.75f;
 }
 
 void SNsSpyglassGraphWidget::RebuildGraph()
@@ -618,8 +620,8 @@ void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, in
             else
             {
                 const float AttractionScale = UNsSpyglassSettings::GetSettings()->AttractionScale;
-                Displacement[i] -= Delta * FMath::Loge(Dist) * AttractionScale;
-                Displacement[Link] += Delta * FMath::Loge(Dist) * AttractionScale;
+                Displacement[i] -= Delta * Dist * AttractionScale;
+                Displacement[Link] += Delta * Dist * AttractionScale;
             }
         }
     }

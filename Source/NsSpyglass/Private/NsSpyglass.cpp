@@ -61,12 +61,20 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     // Limits for the slider UI
     const float MaxRepulsion = 50000.f;
     const float MaxCenterForce = 2.f;
-    const float MaxAttractionScale = 100.f;
+    const float MaxAttractionScale = 2.f;
 
     TSharedRef<SDockTab> Tab = SNew(SDockTab)
     .TabRole(ETabRole::NomadTab)
     [
         SNew(SHorizontalBox)
+        + SHorizontalBox::Slot().FillWidth(1.f)
+        [
+            SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
+        ]
+        + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
+        [
+            SAssignNew(InfoWidget, SPluginInfoWidget)
+        ]
         + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
         [
             SNew(SVerticalBox)
@@ -113,8 +121,8 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 SAssignNew(AttractionSpinBox, SSpinBox<float>)
                 .Value(UNsSpyglassSettings::GetSettings()->AttractionScale)
                 .MaxValue(MaxAttractionScale)
-                .MinValue(1.f)
-                .MinSliderValue(1.f)
+                .MinValue(0.1f)
+                .MinSliderValue(0.1f)
                 .MaxSliderValue(MaxAttractionScale)
                 .OnValueChanged_Lambda([](const float V)
                 {
@@ -146,9 +154,9 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                     }
                     else
                     {
-                        UNsSpyglassSettings::GetSettings()->Repulsion = 35000.f;
-                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.1f;
-                        UNsSpyglassSettings::GetSettings()->AttractionScale = 40.f;
+                        UNsSpyglassSettings::GetSettings()->Repulsion = 15000.f;
+                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.05f;
+                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.f;
                     }
 
                     UNsSpyglassSettings::GetSettings()->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
@@ -172,14 +180,6 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                     }
                 })
             ]
-        ]
-        + SHorizontalBox::Slot().FillWidth(1.f)
-        [
-            SAssignNew(GraphWidget, SNsSpyglassGraphWidget)
-        ]
-        + SHorizontalBox::Slot().AutoWidth().Padding(4.f)
-        [
-            SAssignNew(InfoWidget, SPluginInfoWidget)
         ]
     ];
 
