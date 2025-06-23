@@ -104,6 +104,9 @@ private:
     /** Return the index of the node under the cursor or INDEX_NONE. */
     int32 HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const;
 
+    /** Perform a single ForceAtlas2 iteration on the node array.*/
+    void RunForceAtlas2Step(TArray<FPluginNode>& Nodes, int32 RootIndex, float Repulsion, float Gravity, float DeltaTime);
+
 // Variables
 private:
 

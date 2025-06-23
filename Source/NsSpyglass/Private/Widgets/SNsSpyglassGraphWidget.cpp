@@ -1,11 +1,11 @@
 #include "Widgets/SNsSpyglassGraphWidget.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
 #include "Rendering/DrawElements.h"
 #include "Settings/NsSpyglassSettings.h"
-#include "Brushes/SlateColorBrush.h"
 #include "Styling/CoreStyle.h"
 
 SNsSpyglassGraphWidget::SNsSpyglassGraphWidget()
@@ -91,13 +91,16 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
         // If the plugin has no dependencies, connect it to the root
         // so the root appears as an upstream dependency.
-        if (Nodes[i].Dependencies.Num() == 0)
+        if (UNsSpyglassSettings::GetSettings()->bZenMode)
         {
-            Nodes[i].Links.AddUnique(RootIndex);
-            Nodes[RootIndex].Links.AddUnique(i);
-            // The plugin depends on the root, so the arrow points to the root.
-            Nodes[i].Dependencies.AddUnique(RootIndex);
-            Nodes[RootIndex].Dependents.AddUnique(i);
+            if (Nodes[i].Dependencies.Num() == 0)
+            {
+                Nodes[i].Links.AddUnique(RootIndex);
+                Nodes[RootIndex].Links.AddUnique(i);
+                // The plugin depends on the root, so the arrow points to the root.
+                Nodes[i].Dependencies.AddUnique(RootIndex);
+                Nodes[RootIndex].Dependents.AddUnique(i);
+            }
         }
     }
 
@@ -120,7 +123,7 @@ void SNsSpyglassGraphWidget::InitStars(const FVector2D& ViewSize) const
     {
         StarsViewSize = ViewSize;
         Stars.Empty();
-        const int32 NumStars = 150;
+        const int32 NumStars = 250;
         for (int32 i = 0; i < NumStars; ++i)
         {
             FBackgroundStar Star;
@@ -179,6 +182,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
 
     TSet<int32> Downstream;
     TSet<int32> Upstream;
+
     if (HoveredNode != INDEX_NONE)
     {
         // Downstream dependencies
@@ -265,8 +269,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             if (bHighlighted)
             {
                 LineColor = Nodes[i].Color;
-                LineColor.A = 1.f;
-                Thickness = 2.f;
+                LineColor.A = Upstream.Contains(i) ? 0.3f : 1.f;
+                Thickness = Upstream.Contains(i) ? 2.f : 4.f;
             }
             else
             {
@@ -281,7 +285,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             {
                 // Arrowhead uses the dependency color with upstream arrows dimmer
                 FLinearColor ArrowColor = Nodes[Link].Color;
-                ArrowColor.A = Upstream.Contains(i) ? 0.5f : 1.f;
+                ArrowColor.A = Upstream.Contains(i) ? 0.3f : 1.f;
                 const float ArrowSize = 8.f * ZoomScale;
                 const FVector2D Perp(-Dir.Y, Dir.X);
                 const FVector2D Tip = End;
@@ -328,9 +332,16 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         FLinearColor OutlineColor = bOutlined ? Node.Color : FLinearColor::Transparent;
         if (bOutlined)
         {
-            OutlineColor.A = 0.5f;
+            if (Upstream.Contains(i))
+            {
+                OutlineColor.A = 0.2f;
+            }
+            else if (Downstream.Contains(i))
+            {
+                OutlineColor.A = 1.0f;
+            }
         }
-        const float OutlineThickness = bOutlined ? 2.f : 0.f;
+        const float OutlineThickness = bOutlined ? 4.f : 0.f;
 
         FSlateRoundedBoxBrush CircleBrush(FLinearColor::White, Size * 0.5f, OutlineColor, OutlineThickness);
         FSlateDrawElement::MakeBox(
@@ -487,91 +498,94 @@ void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
     OnNodeHovered = InDelegate;
 }
 
-namespace
+void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, int32 InRootIndex, float Repulsion, float Gravity, float DeltaTime)
 {
-    /**
-     * Perform a single ForceAtlas2 iteration on the node array.
-     */
-    void RunForceAtlas2Step(TArray<FPluginNode>& Nodes, int32 RootIndex, float Repulsion, float Gravity, float DeltaTime)
+    const int32 Num = InNodes.Num();
+    if (Num <= 1)
     {
-        const int32 Num = Nodes.Num();
-        if (Num <= 1)
-        {
-            return;
-        }
+        return;
+    }
 
-        TArray<float> Mass;
-        Mass.SetNumUninitialized(Num);
-        for (int32 i = 0; i < Num; ++i)
-        {
-            Mass[i] = 1.f + Nodes[i].Links.Num();
-        }
+    TArray<float> Mass;
+    Mass.SetNumUninitialized(Num);
+    for (int32 i = 0; i < Num; ++i)
+    {
+        Mass[i] = 1.f + InNodes[i].Links.Num();
+    }
 
-        TArray<FVector2D> Displacement;
-        Displacement.Init(FVector2D::ZeroVector, Num);
+    TArray<FVector2D> Displacement;
+    Displacement.Init(FVector2D::ZeroVector, Num);
 
-        // Repulsion forces
-        for (int32 i = 0; i < Num; ++i)
+    // Repulsion forces
+    for (int32 i = 0; i < Num; ++i)
+    {
+        for (int32 j = i + 1; j < Num; ++j)
         {
-            for (int32 j = i + 1; j < Num; ++j)
+            FVector2D Delta = InNodes[i].Position - InNodes[j].Position;
+            float DistSqr = Delta.SizeSquared();
+            if (DistSqr < KINDA_SMALL_NUMBER)
             {
-                FVector2D Delta = Nodes[i].Position - Nodes[j].Position;
-                float DistSqr = Delta.SizeSquared();
-                if (DistSqr < KINDA_SMALL_NUMBER)
-                {
-                    Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
-                    DistSqr = KINDA_SMALL_NUMBER;
-                }
-                Delta /= FMath::Sqrt(DistSqr);
-                const float Force = Repulsion * Mass[i] * Mass[j] / DistSqr;
-                Displacement[i] += Delta * Force;
-                Displacement[j] -= Delta * Force;
+                Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
+                DistSqr = KINDA_SMALL_NUMBER;
             }
+            Delta /= FMath::Sqrt(DistSqr);
+            const float Force = Repulsion * Mass[i] * Mass[j] / DistSqr;
+            Displacement[i] += Delta * Force;
+            Displacement[j] -= Delta * Force;
         }
+    }
 
-        // Attraction along edges
-        for (int32 i = 0; i < Num; ++i)
+    // Attraction along edges
+    for (int32 i = 0; i < Num; ++i)
+    {
+        for (const int32 Link : InNodes[i].Links)
         {
-            for (int32 Link : Nodes[i].Links)
+            if (!InNodes.IsValidIndex(Link))
             {
-                if (!Nodes.IsValidIndex(Link))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                FVector2D Delta = Nodes[i].Position - Nodes[Link].Position;
-                float Dist = Delta.Size();
-                if (Dist < KINDA_SMALL_NUMBER)
-                {
-                    Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
-                    Dist = KINDA_SMALL_NUMBER;
-                }
-                Delta /= Dist;
+            FVector2D Delta = InNodes[i].Position - InNodes[Link].Position;
+            float Dist = Delta.Size();
+            if (Dist < KINDA_SMALL_NUMBER)
+            {
+                Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
+                Dist = KINDA_SMALL_NUMBER;
+            }
+            Delta /= Dist;
 
+            if (UNsSpyglassSettings::GetSettings()->bZenMode)
+            {
                 // Attraction is proportional to distance
                 Displacement[i] -= Delta * Dist;
                 Displacement[Link] += Delta * Dist;
             }
-        }
-
-        // Gravity to keep graph centered
-        for (int32 i = 0; i < Num; ++i)
-        {
-            Displacement[i] -= Nodes[i].Position * Gravity * Mass[i];
-        }
-
-        const float Step = DeltaTime * 5.f;
-        for (int32 i = 0; i < Num; ++i)
-        {
-            if (i == RootIndex || Nodes[i].bFixed)
+            else
             {
-                continue; // keep anchored nodes stationary
+                const float AttractionScale = UNsSpyglassSettings::GetSettings()->AttractionScale;
+                Displacement[i] -= Delta * FMath::Loge(Dist) * AttractionScale;
+                Displacement[Link] += Delta * FMath::Loge(Dist) * AttractionScale;
             }
-
-            Nodes[i].Position += (Displacement[i] / Mass[i]) * Step;
         }
     }
-} // namespace
+
+    // Gravity to keep graph centered
+    for (int32 i = 0; i < Num; ++i)
+    {
+        Displacement[i] -= InNodes[i].Position * Gravity * Mass[i];
+    }
+
+    const float Step = DeltaTime * 5.f;
+    for (int32 i = 0; i < Num; ++i)
+    {
+        if (i == InRootIndex || InNodes[i].bFixed)
+        {
+            continue; // keep anchored InNodes stationary
+        }
+
+        InNodes[i].Position += (Displacement[i] / Mass[i]) * Step;
+    }
+}
 
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {

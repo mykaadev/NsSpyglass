@@ -1,8 +1,10 @@
 #include "NsSpyglass.h"
 #include "Settings/NsSpyglassSettings.h"
+#include "Styling/SlateTypes.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNsSpyglassGraphWidget.h"
@@ -68,6 +70,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     // Limits for the slider UI
     const float MaxRepulsion = 50000.f;
     const float MaxCenterForce = 2.f;
+    const float MaxAttractionScale = 100.f;
 
     TSharedRef<SDockTab> Tab = SNew(SDockTab)
     .TabRole(ETabRole::NomadTab)
@@ -82,7 +85,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             ]
             + SVerticalBox::Slot().AutoHeight()
             [
-                Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 1000.f, MaxRepulsion)
+                Slider(UNsSpyglassSettings::GetSettings()->Repulsion, 10000.f, MaxRepulsion)
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
             [
@@ -91,6 +94,43 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
             + SVerticalBox::Slot().AutoHeight()
             [
                 Slider(UNsSpyglassSettings::GetSettings()->CenterForce, 0.f, MaxCenterForce)
+            ]
+            + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+            [
+                SNew(STextBlock).Text(FText::FromString("AttractionScale"))
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                Slider(UNsSpyglassSettings::GetSettings()->AttractionScale, 1.f, MaxAttractionScale)
+            ]
+            + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
+            [
+                SNew(STextBlock).Text(FText::FromString("Zen Mode"))
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([&] ()
+                {
+                    return UNsSpyglassSettings::GetSettings()->bZenMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([&](ECheckBoxState InCheckBoxState)
+                {
+                    if (InCheckBoxState == ECheckBoxState::Checked)
+                    {
+                        UNsSpyglassSettings::GetSettings()->Repulsion = 50000.f;
+                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.5f;
+                        UNsSpyglassSettings::GetSettings()->AttractionScale = 20.f;
+                    }
+                    else
+                    {
+                        UNsSpyglassSettings::GetSettings()->Repulsion = 50000.f;
+                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.2f;
+                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.f;
+                    }
+
+                    UNsSpyglassSettings::GetSettings()->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
+                })
             ]
         ]
         + SHorizontalBox::Slot().FillWidth(1.f)
