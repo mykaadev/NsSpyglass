@@ -1,3 +1,5 @@
+// Copyright (C) 2025 nulled.softworks. All rights reserved.
+
 #include "Widgets/SNsSpyglassGraphWidget.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Brushes/SlateRoundedBoxBrush.h"

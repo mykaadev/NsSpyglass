@@ -1,3 +1,5 @@
+// Copyright (C) 2025 nulled.softworks. All rights reserved.
+
 #include "Widgets/SPluginInfoWidget.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
