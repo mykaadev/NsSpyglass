@@ -8,7 +8,7 @@
  * Settings that control the force directed layout.
  * Values are persisted per user so tweaks are restored across editor sessions.
  */
-UCLASS(Config=EditorPerProjectUserSettings, DefaultConfig)
+UCLASS(Config=NsSpyglassSettings, DefaultConfig)
 class UNsSpyglassSettings : public UDeveloperSettings
 {
     GENERATED_BODY()
@@ -22,6 +22,9 @@ public:
     /** Get Spyglass Settings */
     UFUNCTION(BlueprintCallable, Category = "Settings")
     static UNsSpyglassSettings* GetSettings();
+
+protected:
+    virtual FName GetContainerName() const override;
 
 // Variables
 public:
