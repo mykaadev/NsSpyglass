@@ -7,21 +7,14 @@ UNsSpyglassSettings::UNsSpyglassSettings()
 	, CenterForce(0.05f)
 	, AttractionScale(1.f)
 	, bZenMode(false)
-UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
 {
-   static UNsSpyglassSettings* Instance;
-   if(Instance != nullptr)
-{
-       return Instance;
     CategoryName = FName(TEXTVIEW("Plugins"));
 }
 
-   for (const TObjectIterator<UNsSpyglassSettings> SettingsIt(RF_NoFlags); SettingsIt;)
+const UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
 {
-       Instance = *SettingsIt;
-       break;
+   return GetDefault<UNsSpyglassSettings>();
 }
-   return Instance;
 
 FName UNsSpyglassSettings::GetContainerName() const
 {

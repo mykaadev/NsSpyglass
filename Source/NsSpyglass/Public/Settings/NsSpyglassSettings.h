@@ -21,7 +21,7 @@ public:
 
     /** Get Spyglass Settings */
     UFUNCTION(BlueprintCallable, Category = "Settings")
-    static UNsSpyglassSettings* GetSettings();
+    static const UNsSpyglassSettings* GetSettings();
 
 protected:
     virtual FName GetContainerName() const override;
