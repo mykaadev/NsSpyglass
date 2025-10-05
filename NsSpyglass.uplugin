@@ -4,7 +4,7 @@
     "VersionName":  "1.0",
     "FriendlyName":  "NsSpyglass",
     "Description":  "Nulled Softworks - NsSpyglass",
-    "Category":  "Other",
+    "Category":  "Editor",
     "CreatedBy": "nulled.softworks",
     "CreatedByURL":  "mykaadev.github.io",
     "DocsURL":  "https://mykaadev.github.io/plugins/NsSpyglass",
@@ -17,12 +17,8 @@
                         "Name":  "NsSpyglass",
                         "Type":  "Editor",
                         "LoadingPhase":  "Default",
-                        "PlatformAllowList":  [
-                                                  "Win64"
-                                              ]
                     }
                 ],
     "SupportURL":  "",
-    "EngineVersion":  "5.6.0",
     "FabURL":  "com.epicgames.launcher://ue/Fab/product/94ecc51a-db25-40e3-bc6e-a333cd14f0b4"
 }

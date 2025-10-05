@@ -7,20 +7,16 @@ UNsSpyglassSettings::UNsSpyglassSettings()
 	, CenterForce(0.05f)
 	, AttractionScale(1.f)
 	, bZenMode(false)
-{}
-
-UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
 {
-   static UNsSpyglassSettings* Instance;
-   if(Instance != nullptr)
-   {
-       return Instance;
-   }
+    CategoryName = FName(TEXTVIEW("Plugins"));
+}
 
-   for (const TObjectIterator<UNsSpyglassSettings> SettingsIt(RF_NoFlags); SettingsIt;)
-   {
-       Instance = *SettingsIt;
-       break;
-   }
-   return Instance;
+const UNsSpyglassSettings* UNsSpyglassSettings::GetSettings()
+{
+   return GetDefault<UNsSpyglassSettings>();
+}
+
+FName UNsSpyglassSettings::GetContainerName() const
+{
+    return FName{TEXTVIEW("Editor")};
 }

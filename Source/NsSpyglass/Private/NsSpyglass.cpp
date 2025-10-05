@@ -3,10 +3,8 @@
 #include "Styling/SlateTypes.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/SNsSpyglassGraphWidget.h"
 #include "Widgets/SPluginInfoWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -92,7 +90,11 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 .MaxSliderValue(MaxRepulsion)
                 .OnValueChanged_Lambda([](const float V)
                 {
-                    UNsSpyglassSettings::GetSettings()->Repulsion = V;
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+                        
+                    NsSpyglassSettings->Repulsion = V;
+                    NsSpyglassSettings->SaveConfig();
                 })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
@@ -109,7 +111,11 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 .MaxSliderValue(MaxCenterForce)
                 .OnValueChanged_Lambda([](const float V)
                 {
-                    UNsSpyglassSettings::GetSettings()->CenterForce = V;
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+                        
+                    NsSpyglassSettings->CenterForce = V;
+                    NsSpyglassSettings->SaveConfig();
                 })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
@@ -126,7 +132,11 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                 .MaxSliderValue(MaxAttractionScale)
                 .OnValueChanged_Lambda([](const float V)
                 {
-                    UNsSpyglassSettings::GetSettings()->AttractionScale = V;
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+                        
+                    NsSpyglassSettings->AttractionScale = V;
+                    NsSpyglassSettings->SaveConfig();
                 })
             ]
             + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0,5,0,0))
@@ -145,36 +155,40 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                                            CenterForceSpinBox,
                                            AttractionSpinBox](ECheckBoxState InCheckBoxState)
                 {
-                    const bool bPreviousState = UNsSpyglassSettings::GetSettings()->bZenMode;
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+                        
+                    const bool bPreviousState = NsSpyglassSettings->bZenMode;
                     if (InCheckBoxState == ECheckBoxState::Checked)
                     {
-                        UNsSpyglassSettings::GetSettings()->Repulsion = 35000.f;
-                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.2f;
-                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.0f;
+                        NsSpyglassSettings->Repulsion = 35000.f;
+                        NsSpyglassSettings->CenterForce = 0.2f;
+                        NsSpyglassSettings->AttractionScale = 1.0f;
                     }
                     else
                     {
-                        UNsSpyglassSettings::GetSettings()->Repulsion = 15000.f;
-                        UNsSpyglassSettings::GetSettings()->CenterForce = 0.05f;
-                        UNsSpyglassSettings::GetSettings()->AttractionScale = 1.f;
+                        NsSpyglassSettings->Repulsion = 15000.f;
+                        NsSpyglassSettings->CenterForce = 0.05f;
+                        NsSpyglassSettings->AttractionScale = 1.f;
                     }
 
-                    UNsSpyglassSettings::GetSettings()->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
+                    NsSpyglassSettings->bZenMode = InCheckBoxState == ECheckBoxState::Checked;
+                    NsSpyglassSettings->SaveConfig();
 
                     if (RepulsionSpinBox.IsValid())
                     {
-                        RepulsionSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->Repulsion);
+                        RepulsionSpinBox->SetValue(NsSpyglassSettings->Repulsion);
                     }
                     if (CenterForceSpinBox.IsValid())
                     {
-                        CenterForceSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->CenterForce);
+                        CenterForceSpinBox->SetValue(NsSpyglassSettings->CenterForce);
                     }
                     if (AttractionSpinBox.IsValid())
                     {
-                        AttractionSpinBox->SetValue(UNsSpyglassSettings::GetSettings()->AttractionScale);
+                        AttractionSpinBox->SetValue(NsSpyglassSettings->AttractionScale);
                     }
 
-                    if (GraphWidget.IsValid() && bPreviousState != UNsSpyglassSettings::GetSettings()->bZenMode)
+                    if (GraphWidget.IsValid() && bPreviousState != NsSpyglassSettings->bZenMode)
                     {
                         GraphWidget->RebuildGraph();
                     }
