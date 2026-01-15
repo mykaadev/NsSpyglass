@@ -8,7 +8,7 @@
  * Settings that control the force directed layout.
  * Values are persisted per user so tweaks are restored across editor sessions.
  */
-UCLASS(Config=NsSpyglassSettings, DefaultConfig)
+UCLASS(Config=EditorPerProjectUserSettings)
 class UNsSpyglassSettings : public UDeveloperSettings
 {
     GENERATED_BODY()
@@ -40,8 +40,4 @@ public:
     /** Attraction Scale between nodes */
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float AttractionScale;
-
-    /** Zen Mode */
-    UPROPERTY(EditAnywhere, Config, Category="Layout")
-    bool bZenMode;
 };

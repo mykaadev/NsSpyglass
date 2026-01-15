@@ -20,6 +20,33 @@ void SNsSpyglassGraphWidget::Construct(const FArguments& InArgs)
 {
     RecenterView();
     BuildNodes(FVector2D(960.f, 540.f));
+
+    // Start intro animation (first time only)
+    bIntroRunning = true;
+    IntroElapsed = 0.f;
+
+    // Default: everything hidden/inactive, will appear over time
+    for (FPluginNode& N : Nodes)
+    {
+        N.bActive = false;
+        N.AppearAlpha = 0.f;
+        N.Velocity = FVector2D::ZeroVector;
+    }
+
+    // Assign delays (nice: high-degree nodes appear first)
+    TArray<int32> Order;
+    Order.Reserve(Nodes.Num());
+    for (int32 i = 0; i < Nodes.Num(); ++i) Order.Add(i);
+
+    Order.Sort([this](int32 A, int32 B)
+    {
+        return Nodes[A].Links.Num() > Nodes[B].Links.Num();
+    });
+
+    for (int32 k = 0; k < Order.Num(); ++k)
+    {
+        Nodes[Order[k]].AppearDelay = k * IntroStagger;
+    }
 }
 
 void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
@@ -31,18 +58,6 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
     TMap<FString, int32> NameToIndex;
     TMap<FString, FLinearColor> CategoryColors;
-
-    // Root node stays in the middle
-    if (UNsSpyglassSettings::GetSettings()->bZenMode)
-    {
-        FPluginNode RootNode;
-        RootNode.Name = TEXT("Root");
-        RootNode.Position = FVector2D::ZeroVector;
-        RootNode.Color = FLinearColor(0.8f, 0.2f, 0.2f, 0.1f);
-        RootNode.bFixed = true;
-        RootIndex = Nodes.Add(RootNode);
-        NameToIndex.Add(RootNode.Name, RootIndex);
-    }
 
     // Create nodes for plugins
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
@@ -75,10 +90,9 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     }
 
     // Fill in links
-    const int32 StartIdx = UNsSpyglassSettings::GetSettings()->bZenMode ? 1 : 0;
-    for (int32 i = StartIdx; i < Nodes.Num(); ++i)
+    for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        const TSharedRef<IPlugin>& Plugin = Plugins[i - StartIdx];
+        const TSharedRef<IPlugin>& Plugin = Plugins[i];
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
         {
@@ -95,28 +109,14 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
                 }
             }
         }
-
-        // If the plugin has no dependencies, connect it to the root
-        // so the root appears as an upstream dependency.
-        if (UNsSpyglassSettings::GetSettings()->bZenMode && Nodes[i].Dependencies.Num() == 0)
-        {
-            if (Nodes[i].Dependencies.Num() == 0)
-            {
-                Nodes[i].Links.AddUnique(RootIndex);
-                Nodes[RootIndex].Links.AddUnique(i);
-                // The plugin depends on the root, so the arrow points to the root.
-                Nodes[i].Dependencies.AddUnique(RootIndex);
-                Nodes[RootIndex].Dependents.AddUnique(i);
-            }
-        }
     }
 
     // Arrange nodes in a circle to avoid overlapping at the origin
     if (Nodes.Num() > 1)
     {
-        const float Radius = 200.f;
-        const float Step = 2.f * PI / static_cast<float>(Nodes.Num() - StartIdx);
-        for (int32 i = StartIdx; i < Nodes.Num(); ++i)
+        constexpr float Radius = 200.f;
+        const float Step = 2.f * PI / static_cast<float>(Nodes.Num());
+        for (int32 i = 0; i < Nodes.Num(); ++i)
         {
             const float Angle = Step * static_cast<float>(i - 1);
             Nodes[i].Position = FVector2D(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius);
@@ -147,16 +147,25 @@ void SNsSpyglassGraphWidget::InitStars(const FVector2D& ViewSize) const
 int32 SNsSpyglassGraphWidget::HitTestNode(const FVector2D& LocalPos, const FVector2D& ViewSize) const
 {
     const FVector2D Center = ViewSize * 0.5f;
+
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
+        if (!Nodes[i].bActive || Nodes[i].AppearAlpha < 0.15f)
+        {
+            continue;
+        }
+
         const float BaseSize = Nodes[i].Name == TEXT("Root") ? 60.f : 40.f;
         const float Size = BaseSize * ZoomAmount;
+
         const FVector2D NodePos = Center + ViewOffset + Nodes[i].Position * ZoomAmount;
+
         if ((LocalPos - NodePos).SizeSquared() <= FMath::Square(Size * 0.5f))
         {
             return i;
         }
     }
+
     return INDEX_NONE;
 }
 
@@ -248,12 +257,24 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
+
+        if (!Node.bActive || Node.AppearAlpha <= 0.01f)
+        {
+            continue;
+        }
+
         const FVector2D NodePos = Center + ViewOffset + Node.Position * ZoomAmount;
         const float NodeRadius = ((Node.Name == TEXT("Root")) ? 60.f : 40.f) * ZoomScale * 0.5f;
 
         for (int32 Link : Node.Dependencies)
         {
             if (!Nodes.IsValidIndex(Link) || i == Link)
+            {
+                continue;
+            }
+
+            const float EdgeAlpha = FMath::Min(Node.AppearAlpha, Nodes[Link].AppearAlpha);
+            if (!Nodes[Link].bActive || EdgeAlpha <= 0.01f)
             {
                 continue;
             }
@@ -284,6 +305,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
                 LineColor.A = 0.05f;
             }
 
+            LineColor.A *= EdgeAlpha;
             // Line body
             TArray<FVector2D> LinePoints{Start, End};
             FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, LineColor, true, Thickness);
@@ -293,6 +315,8 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
                 // Arrowhead uses the dependency color with upstream arrows dimmer
                 FLinearColor ArrowColor = Nodes[Link].Color;
                 ArrowColor.A = Upstream.Contains(i) ? 0.3f : 1.f;
+                ArrowColor.A *= EdgeAlpha;
+
                 const float ArrowSize = 8.f * ZoomScale;
                 const FVector2D Perp(-Dir.Y, Dir.X);
                 const FVector2D Tip = End;
@@ -311,11 +335,19 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
         const FPluginNode& Node = Nodes[i];
-        const float BaseSize = Node.Name == TEXT("Root") ? 60.f : 40.f;
-        const float Size = BaseSize * ZoomScale;
+
+        if (!Node.bActive || Node.AppearAlpha <= 0.01f)
+        {
+            continue;
+        }
+
+        const float BaseSize = 40.f;
+        const float Ease = FMath::InterpEaseOut(0.f, 1.f, Node.AppearAlpha, 2.f);
+        const float Size = BaseSize * ZoomScale * FMath::Lerp(0.2f, 1.f, Ease);
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 
         FLinearColor BoxColor = Node.Color;
+
         if (Node.bIsEngine && Node.Name != TEXT("Root"))
         {
             FLinearColor LerpColor = FLinearColor::LerpUsingHSV(BoxColor, FLinearColor::White, 0.3f);
@@ -384,7 +416,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / FMath::Max(ShortSize.X, FullSize.X));
             const float ShortScale = BaseScale * ZoomScale;
             const float FullScale = BaseScale * 0.6f * ZoomScale;
-            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
+            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f) * Node.AppearAlpha;
 
             const float TotalHeight = ShortSize.Y * ShortScale + FullSize.Y * FullScale;
             const float StartY = (Size - TotalHeight) * 0.5f;
@@ -417,7 +449,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const FVector2D TextSize = Measure->Measure(Node.Name, Font);
             const float BaseScale = FMath::Min(1.f, (BaseSize - 8.f) / TextSize.X);
             const float TextScale = BaseScale * ZoomScale;
-            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f);
+            const float TextAlpha = FMath::Clamp(ZoomAmount, 0.f, 1.f) * Node.AppearAlpha;
             const FVector2D Offset((Size - TextSize.X * TextScale) * 0.5f, (Size - TextSize.Y * TextScale) * 0.5f);
 
             FSlateDrawElement::MakeText(
@@ -447,6 +479,7 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, co
             bIsDragging = true;
             DraggedNode = Hit;
             Nodes[Hit].bFixed = true;
+            Nodes[Hit].Velocity = FVector2D::ZeroVector;
             LastMousePos = LocalPos;
             return FReply::Handled().CaptureMouse(SharedThis(this));
         }
@@ -472,6 +505,7 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, cons
         if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
         {
             Nodes[DraggedNode].bFixed = false;
+            Nodes[DraggedNode].Velocity = FVector2D::ZeroVector;
         }
         bIsDragging = false;
         DraggedNode = INDEX_NONE;
@@ -560,10 +594,17 @@ void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
 void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, int32 InRootIndex, float Repulsion, float Gravity, float DeltaTime)
 {
     const int32 Num = InNodes.Num();
-    if (Num <= 1)
-    {
-        return;
-    }
+    if (Num <= 1) return;
+
+    const float MinDist = 25.f;
+
+    // Feel tuning
+    const float Damping  = 0.90f;
+    const float MaxSpeed = 1000.f;
+    const float SimSpeed = bIsDragging ? 60.f : 40.f;
+
+    const float EdgeStrength = UNsSpyglassSettings::GetSettings()->AttractionScale;
+    const float RestLength = 140.f;   // edges only pull when stretched
 
     TArray<float> Mass;
     Mass.SetNumUninitialized(Num);
@@ -572,85 +613,136 @@ void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, in
         Mass[i] = 1.f + InNodes[i].Links.Num();
     }
 
-    TArray<FVector2D> Displacement;
-    Displacement.Init(FVector2D::ZeroVector, Num);
+    TArray<FVector2D> Force;
+    Force.Init(FVector2D::ZeroVector, Num);
 
-    // Repulsion forces
+    // --- Repulsion (pairwise) ---
     for (int32 i = 0; i < Num; ++i)
     {
+        if (!InNodes[i].bActive) continue;
+
         for (int32 j = i + 1; j < Num; ++j)
         {
+            if (!InNodes[j].bActive) continue;
+
             FVector2D Delta = InNodes[i].Position - InNodes[j].Position;
+
             float DistSqr = Delta.SizeSquared();
-            if (DistSqr < KINDA_SMALL_NUMBER)
-            {
-                Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
-                DistSqr = KINDA_SMALL_NUMBER;
-            }
-            Delta /= FMath::Sqrt(DistSqr);
-            const float Force = Repulsion * Mass[i] * Mass[j] / DistSqr;
-            Displacement[i] += Delta * Force;
-            Displacement[j] -= Delta * Force;
+            DistSqr = FMath::Max(DistSqr, MinDist * MinDist);
+
+            const float Dist = FMath::Sqrt(DistSqr);
+            const FVector2D Dir = Delta / Dist;
+
+            const float F = Repulsion * Mass[i] * Mass[j] / DistSqr;
+
+            Force[i] += Dir * F;
+            Force[j] -= Dir * F;
         }
     }
 
-    // Attraction along edges
+    // --- Attraction (edges) ---
     for (int32 i = 0; i < Num; ++i)
     {
-        for (const int32 Link : InNodes[i].Links)
+        if (!InNodes[i].bActive) continue;
+
+        for (int32 Link : InNodes[i].Links)
         {
-            if (!InNodes.IsValidIndex(Link))
-            {
-                continue;
-            }
+            if (!InNodes.IsValidIndex(Link)) continue;
+            if (!InNodes[Link].bActive) continue;
+
+            // critical: process each undirected edge once
+            if (Link <= i) continue;
 
             FVector2D Delta = InNodes[i].Position - InNodes[Link].Position;
+
             float Dist = Delta.Size();
-            if (Dist < KINDA_SMALL_NUMBER)
-            {
-                Delta = FVector2D(FMath::FRand() - 0.5f, FMath::FRand() - 0.5f);
-                Dist = KINDA_SMALL_NUMBER;
-            }
-            Delta /= Dist;
+            Dist = FMath::Max(Dist, MinDist);
 
-            if (UNsSpyglassSettings::GetSettings()->bZenMode)
-            {
-                // Attraction is proportional to distance
-                Displacement[i] -= Delta * Dist;
-                Displacement[Link] += Delta * Dist;
-            }
-            else
-            {
-                const float AttractionScale = UNsSpyglassSettings::GetSettings()->AttractionScale;
-                Displacement[i] -= Delta * Dist * AttractionScale;
-                Displacement[Link] += Delta * Dist * AttractionScale;
-            }
+            const FVector2D Dir = Delta / Dist;
+
+            // only pull when stretched past rest length
+            const float Stretch = FMath::Max(0.f, Dist - RestLength);
+            const float F = Stretch * EdgeStrength;
+
+            Force[i] -= Dir * F;
+            Force[Link] += Dir * F;
         }
     }
 
-    // Gravity to keep graph centered
+    // --- Gravity (toward origin) ---
     for (int32 i = 0; i < Num; ++i)
     {
-        Displacement[i] -= InNodes[i].Position * Gravity * Mass[i];
+        if (!InNodes[i].bActive) continue;
+        Force[i] -= InNodes[i].Position * Gravity * Mass[i];
     }
 
-    const float Step = DeltaTime * 5.f;
+    // --- Integrate with damping ---
     for (int32 i = 0; i < Num; ++i)
     {
-        if (i == InRootIndex || InNodes[i].bFixed)
-        {
-            continue; // keep anchored InNodes stationary
-        }
+        if (!InNodes[i].bActive) continue;
+        if (i == InRootIndex || InNodes[i].bFixed) continue;
 
-        InNodes[i].Position += (Displacement[i] / Mass[i]) * Step;
+        const FVector2D Accel = Force[i] / Mass[i];
+
+        InNodes[i].Velocity += Accel * DeltaTime * SimSpeed;
+        InNodes[i].Velocity *= Damping;
+        InNodes[i].Velocity = ClampToMaxSize2D(InNodes[i].Velocity, MaxSpeed);
+
+        InNodes[i].Position += InNodes[i].Velocity * DeltaTime;
     }
+}
+
+FVector2D SNsSpyglassGraphWidget::ClampToMaxSize2D(const FVector2D& V, float MaxSize)
+{
+    const float MaxSqr = MaxSize * MaxSize;
+    const float Sqr = V.SizeSquared();
+
+    if (Sqr <= MaxSqr || Sqr <= KINDA_SMALL_NUMBER)
+    {
+        return V;
+    }
+
+    return V * (MaxSize / FMath::Sqrt(Sqr));
 }
 
 void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
     const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
     const float Delta = FMath::Min(InDeltaTime, 0.05f);
-    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion, Settings->CenterForce, Delta);
+
+    if (bIntroRunning)
+    {
+        IntroElapsed += Delta;
+
+        int32 FullyVisible = 0;
+
+        for (FPluginNode& N : Nodes)
+        {
+            const float T = (IntroElapsed - N.AppearDelay) / FMath::Max(0.001f, IntroFade);
+            const float NewAlpha = FMath::Clamp(T, 0.f, 1.f);
+
+            // Activate node when it starts appearing
+            if (!N.bActive && NewAlpha > 0.f)
+            {
+                N.bActive = true;
+                N.Velocity = FVector2D::ZeroVector;
+            }
+
+            N.AppearAlpha = NewAlpha;
+
+            if (N.AppearAlpha >= 1.f)
+            {
+                ++FullyVisible;
+            }
+        }
+
+        if (FullyVisible == Nodes.Num())
+        {
+            bIntroRunning = false;
+        }
+    }
+
+    RunForceAtlas2Step(Nodes, RootIndex, Settings->Repulsion * 100.f, Settings->CenterForce, Delta);
 
     for (FBackgroundStar& Star : Stars)
     {

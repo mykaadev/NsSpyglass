@@ -35,6 +35,13 @@ struct FPluginNode
     /** When true, the node will remain stationary during simulation. */
     bool bFixed = false;
 
+    /** Node velocity */
+    FVector2D Velocity = FVector2D::ZeroVector;
+
+    // Intro animation
+    bool  bActive = true;         // participates in solver + rendering
+    float AppearDelay = 0.f;      // seconds before appearing
+    float AppearAlpha = 1.f;      // 0..1 fade value
 
     /** Plugin reference used for detailed information. */
     TSharedPtr<IPlugin> Plugin;
@@ -95,6 +102,10 @@ public:
     /** Clear and rebuild all nodes. */
     void RebuildGraph();
 
+    /** Clamp to max size */
+    FVector2D ClampToMaxSize2D(const FVector2D& V, float MaxSize);
+
+
 private:
 
     /** Create random background stars. */
@@ -133,7 +144,6 @@ private:
     /** Index of the node currently dragged by the user. */
     mutable int32 DraggedNode = INDEX_NONE;
 
-
     /** Index of the node currently hovered by the mouse. */
     mutable int32 HoveredNode = INDEX_NONE;
 
@@ -148,5 +158,17 @@ private:
 
     /** Cached size for generating star positions. */
     mutable FVector2D StarsViewSize = FVector2D::ZeroVector;
+
+    /** is the intro running */
+    mutable bool  bIntroRunning = false;
+
+    /** intro elapsed */
+    mutable float IntroElapsed = 0.f;
+
+    /** time between nodes */
+    float IntroStagger = 0.02f;
+
+    /** intro node fade duration */
+    float IntroFade = 0.25f;
 };
 

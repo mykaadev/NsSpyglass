@@ -3,10 +3,9 @@
 #include "Settings/NsSpyglassSettings.h"
 
 UNsSpyglassSettings::UNsSpyglassSettings()
-	: Repulsion(15000.f)
-	, CenterForce(0.05f)
-	, AttractionScale(1.f)
-	, bZenMode(false)
+    : Repulsion(1000.f)
+    , CenterForce(0.05f)
+    , AttractionScale(1.f)
 {
     CategoryName = FName(TEXTVIEW("Plugins"));
 }
