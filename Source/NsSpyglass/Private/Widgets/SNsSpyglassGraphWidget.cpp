@@ -412,17 +412,18 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         {
             BoxColor.A *= 0.4f;
         }
+        const float BaseAlpha = Settings->bEnableImpactHeatmap ? 0.18f : 0.05f;
         if (Downstream.Contains(i))
         {
-            BoxColor.A = 0.2f;
+            BoxColor.A = Settings->bEnableImpactHeatmap ? 0.35f : 0.2f;
         }
         else if (Upstream.Contains(i))
         {
-            BoxColor.A = 0.1f;
+            BoxColor.A = Settings->bEnableImpactHeatmap ? 0.22f : 0.1f;
         }
         else
         {
-            BoxColor.A = 0.05f;
+            BoxColor.A = BaseAlpha;
         }
 
         const bool bOutlined = Highlight.Contains(i);

@@ -5,6 +5,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -28,13 +29,19 @@ namespace
             DependencyModules.Add(Mod.Name.ToString());
         }
 
-        const FPluginDescriptor& SourceDesc = SourcePlugin->GetDescriptor();
         const FString SourceDir = SourcePlugin->GetBaseDir();
-        for (const FModuleDescriptor& Mod : SourceDesc.Modules)
+        const FString SourceRoot = FPaths::Combine(SourceDir, TEXT("Source"));
+        TArray<FString> SourceFiles;
+        const TArray<FString> Extensions = {TEXT("*.h"), TEXT("*.hpp"), TEXT("*.cpp"), TEXT("*.inl")};
+        for (const FString& Extension : Extensions)
         {
-            const FString BuildFile = FPaths::Combine(SourceDir, TEXT("Source"), Mod.Name.ToString(), FString::Printf(TEXT("%s.Build.cs"), *Mod.Name.ToString()));
+            IFileManager::Get().FindFilesRecursive(SourceFiles, *SourceRoot, *Extension, true, false);
+        }
+
+        for (const FString& SourceFile : SourceFiles)
+        {
             FString Contents;
-            if (!FFileHelper::LoadFileToString(Contents, *BuildFile))
+            if (!FFileHelper::LoadFileToString(Contents, *SourceFile))
             {
                 continue;
             }
@@ -51,7 +58,7 @@ namespace
 
             if (bFound)
             {
-                Matches.Add(BuildFile);
+                Matches.Add(SourceFile);
             }
         }
 
@@ -172,7 +179,7 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
 
         const FString ReferenceText = ReferenceNames.Num() > 0
             ? FString::Join(ReferenceNames, TEXT(", "))
-            : TEXT("Not found in module Build.cs files");
+            : TEXT("Not found in source files");
 
         DependenciesBox->AddSlot().AutoHeight().Padding(0.f, 2.f)
         [
