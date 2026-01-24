@@ -14,6 +14,43 @@
 
 namespace
 {
+    bool IsDependencyInclude(const FString& IncludePath, const FString& DependencySourceRoot, const TArray<FString>& DependencyModuleNames)
+    {
+        if (IncludePath.IsEmpty())
+        {
+            return false;
+        }
+
+        auto FileExists = [&DependencySourceRoot](const FString& Candidate)
+        {
+            return IFileManager::Get().FileExists(*Candidate);
+        };
+
+        if (FileExists(FPaths::Combine(DependencySourceRoot, IncludePath)))
+        {
+            return true;
+        }
+
+        for (const FString& ModuleName : DependencyModuleNames)
+        {
+            const FString ModuleRoot = FPaths::Combine(DependencySourceRoot, ModuleName);
+            if (FileExists(FPaths::Combine(ModuleRoot, IncludePath)))
+            {
+                return true;
+            }
+            if (FileExists(FPaths::Combine(ModuleRoot, TEXT("Public"), IncludePath)))
+            {
+                return true;
+            }
+            if (FileExists(FPaths::Combine(ModuleRoot, TEXT("Private"), IncludePath)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     TArray<FString> FindDependencyReferences(const TSharedPtr<IPlugin>& SourcePlugin, const TSharedPtr<IPlugin>& DependencyPlugin)
     {
         TArray<FString> Matches;
@@ -22,13 +59,15 @@ namespace
             return Matches;
         }
 
-        TSet<FString> DependencyModules;
+        TArray<FString> DependencyModuleNames;
         const FPluginDescriptor& DepDesc = DependencyPlugin->GetDescriptor();
+        DependencyModuleNames.Reserve(DepDesc.Modules.Num());
         for (const FModuleDescriptor& Mod : DepDesc.Modules)
         {
-            DependencyModules.Add(Mod.Name.ToString());
+            DependencyModuleNames.Add(Mod.Name.ToString());
         }
 
+        const FString DependencySourceRoot = FPaths::Combine(DependencyPlugin->GetBaseDir(), TEXT("Source"));
         const FString SourceDir = SourcePlugin->GetBaseDir();
         const FString SourceRoot = FPaths::Combine(SourceDir, TEXT("Source"));
         TArray<FString> SourceFiles;
@@ -40,16 +79,42 @@ namespace
 
         for (const FString& SourceFile : SourceFiles)
         {
-            FString Contents;
-            if (!FFileHelper::LoadFileToString(Contents, *SourceFile))
+            TArray<FString> Lines;
+            if (!FFileHelper::LoadFileToStringArray(Lines, *SourceFile))
             {
                 continue;
             }
 
             bool bFound = false;
-            for (const FString& DepModule : DependencyModules)
+            for (const FString& Line : Lines)
             {
-                if (Contents.Contains(DepModule))
+                const int32 IncludeIndex = Line.Find(TEXT("#include"));
+                if (IncludeIndex == INDEX_NONE)
+                {
+                    continue;
+                }
+
+                int32 Start = Line.Find(TEXT("\""), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
+                TCHAR Closing = TEXT('"');
+                if (Start == INDEX_NONE)
+                {
+                    Start = Line.Find(TEXT("<"), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
+                    Closing = TEXT('>');
+                }
+
+                if (Start == INDEX_NONE)
+                {
+                    continue;
+                }
+
+                const int32 End = Line.Find(FString::Chr(Closing), ESearchCase::IgnoreCase, ESearchDir::FromStart, Start + 1);
+                if (End == INDEX_NONE)
+                {
+                    continue;
+                }
+
+                const FString IncludePath = Line.Mid(Start + 1, End - Start - 1).TrimStartAndEnd();
+                if (IsDependencyInclude(IncludePath, DependencySourceRoot, DependencyModuleNames))
                 {
                     bFound = true;
                     break;
