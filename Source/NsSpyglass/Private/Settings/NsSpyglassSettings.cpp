@@ -6,6 +6,10 @@ UNsSpyglassSettings::UNsSpyglassSettings()
     : Repulsion(1000.f)
     , CenterForce(0.05f)
     , AttractionScale(1.f)
+    , bShowEnginePlugins(true)
+    , bShowProjectPlugins(true)
+    , bShowDisabledPlugins(false)
+    , bEnableImpactHeatmap(true)
 {
     CategoryName = FName(TEXTVIEW("Plugins"));
 }
