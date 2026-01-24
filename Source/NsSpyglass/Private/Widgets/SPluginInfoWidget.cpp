@@ -51,9 +51,9 @@ namespace
         return false;
     }
 
-    TArray<FString> FindDependencyReferences(const TSharedPtr<IPlugin>& SourcePlugin, const TSharedPtr<IPlugin>& DependencyPlugin)
+    TMap<FString, TArray<FString>> FindDependencyReferences(const TSharedPtr<IPlugin>& SourcePlugin, const TSharedPtr<IPlugin>& DependencyPlugin)
     {
-        TArray<FString> Matches;
+        TMap<FString, TArray<FString>> Matches;
         if (!SourcePlugin || !DependencyPlugin)
         {
             return Matches;
@@ -68,62 +68,75 @@ namespace
         }
 
         const FString DependencySourceRoot = FPaths::Combine(DependencyPlugin->GetBaseDir(), TEXT("Source"));
+        const FPluginDescriptor& SourceDesc = SourcePlugin->GetDescriptor();
         const FString SourceDir = SourcePlugin->GetBaseDir();
         const FString SourceRoot = FPaths::Combine(SourceDir, TEXT("Source"));
-        TArray<FString> SourceFiles;
         const TArray<FString> Extensions = {TEXT("*.h"), TEXT("*.hpp"), TEXT("*.cpp"), TEXT("*.inl")};
-        for (const FString& Extension : Extensions)
-        {
-            IFileManager::Get().FindFilesRecursive(SourceFiles, *SourceRoot, *Extension, true, false);
-        }
 
-        for (const FString& SourceFile : SourceFiles)
+        for (const FModuleDescriptor& SourceModule : SourceDesc.Modules)
         {
-            TArray<FString> Lines;
-            if (!FFileHelper::LoadFileToStringArray(Lines, *SourceFile))
+            const FString ModuleName = SourceModule.Name.ToString();
+            const FString ModuleRoot = FPaths::Combine(SourceRoot, ModuleName);
+            if (!IFileManager::Get().DirectoryExists(*ModuleRoot))
             {
                 continue;
             }
 
-            bool bFound = false;
-            for (const FString& Line : Lines)
+            TArray<FString> ModuleFiles;
+            for (const FString& Extension : Extensions)
             {
-                const int32 IncludeIndex = Line.Find(TEXT("#include"));
-                if (IncludeIndex == INDEX_NONE)
-                {
-                    continue;
-                }
-
-                int32 Start = Line.Find(TEXT("\""), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
-                TCHAR Closing = TEXT('"');
-                if (Start == INDEX_NONE)
-                {
-                    Start = Line.Find(TEXT("<"), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
-                    Closing = TEXT('>');
-                }
-
-                if (Start == INDEX_NONE)
-                {
-                    continue;
-                }
-
-                const int32 End = Line.Find(FString::Chr(Closing), ESearchCase::IgnoreCase, ESearchDir::FromStart, Start + 1);
-                if (End == INDEX_NONE)
-                {
-                    continue;
-                }
-
-                const FString IncludePath = Line.Mid(Start + 1, End - Start - 1).TrimStartAndEnd();
-                if (IsDependencyInclude(IncludePath, DependencySourceRoot, DependencyModuleNames))
-                {
-                    bFound = true;
-                    break;
-                }
+                IFileManager::Get().FindFilesRecursive(ModuleFiles, *ModuleRoot, *Extension, true, false);
             }
 
-            if (bFound)
+            for (const FString& SourceFile : ModuleFiles)
             {
-                Matches.Add(SourceFile);
+                TArray<FString> Lines;
+                if (!FFileHelper::LoadFileToStringArray(Lines, *SourceFile))
+                {
+                    continue;
+                }
+
+                bool bFound = false;
+                for (const FString& Line : Lines)
+                {
+                    const int32 IncludeIndex = Line.Find(TEXT("#include"));
+                    if (IncludeIndex == INDEX_NONE)
+                    {
+                        continue;
+                    }
+
+                    int32 Start = Line.Find(TEXT("\""), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
+                    TCHAR Closing = TEXT('"');
+                    if (Start == INDEX_NONE)
+                    {
+                        Start = Line.Find(TEXT("<"), ESearchCase::IgnoreCase, ESearchDir::FromStart, IncludeIndex);
+                        Closing = TEXT('>');
+                    }
+
+                    if (Start == INDEX_NONE)
+                    {
+                        continue;
+                    }
+
+                    const int32 End = Line.Find(FString::Chr(Closing), ESearchCase::IgnoreCase, ESearchDir::FromStart, Start + 1);
+                    if (End == INDEX_NONE)
+                    {
+                        continue;
+                    }
+
+                    const FString IncludePath = Line.Mid(Start + 1, End - Start - 1).TrimStartAndEnd();
+                    if (IsDependencyInclude(IncludePath, DependencySourceRoot, DependencyModuleNames))
+                    {
+                        bFound = true;
+                        break;
+                    }
+                }
+
+                if (bFound)
+                {
+                    TArray<FString>& ModuleMatches = Matches.FindOrAdd(ModuleName);
+                    ModuleMatches.Add(SourceFile);
+                }
             }
         }
 
@@ -234,16 +247,27 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
         }
 
         const TSharedPtr<IPlugin> DependencyPlugin = IPluginManager::Get().FindPlugin(Ref.Name);
-        const TArray<FString> References = FindDependencyReferences(CurrentPlugin, DependencyPlugin);
-        TArray<FString> ReferenceNames;
-        ReferenceNames.Reserve(References.Num());
-        for (const FString& Reference : References)
+        const TMap<FString, TArray<FString>> ReferencesByModule = FindDependencyReferences(CurrentPlugin, DependencyPlugin);
+        TArray<FString> SummaryLines;
+        TArray<FString> FullLines;
+        for (const TPair<FString, TArray<FString>>& Pair : ReferencesByModule)
         {
-            ReferenceNames.Add(FPaths::GetCleanFilename(Reference));
+            TArray<FString> FileNames;
+            FileNames.Reserve(Pair.Value.Num());
+            for (const FString& Reference : Pair.Value)
+            {
+                FileNames.Add(FPaths::GetCleanFilename(Reference));
+            }
+            SummaryLines.Add(FString::Printf(TEXT("%s: %s"), *Pair.Key, *FString::Join(FileNames, TEXT(", "))));
+            FullLines.Add(FString::Printf(TEXT("%s:"), *Pair.Key));
+            for (const FString& Reference : Pair.Value)
+            {
+                FullLines.Add(FString::Printf(TEXT("  %s"), *Reference));
+            }
         }
 
-        const FString ReferenceText = ReferenceNames.Num() > 0
-            ? FString::Join(ReferenceNames, TEXT(", "))
+        const FString ReferenceText = SummaryLines.Num() > 0
+            ? FString::Join(SummaryLines, TEXT(" | "))
             : TEXT("Not found in source files");
 
         DependenciesBox->AddSlot().AutoHeight().Padding(0.f, 2.f)
@@ -257,7 +281,7 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
             [
                 SNew(STextBlock)
                 .Text(FText::FromString(FString::Printf(TEXT("Referenced in %s"), *ReferenceText)))
-                .ToolTipText(FText::FromString(References.Num() > 0 ? FString::Join(References, TEXT("\n")) : ReferenceText))
+                .ToolTipText(FText::FromString(FullLines.Num() > 0 ? FString::Join(FullLines, TEXT("\n")) : ReferenceText))
                 .ColorAndOpacity(FLinearColor(0.65f, 0.65f, 0.65f))
                 .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
             ]
