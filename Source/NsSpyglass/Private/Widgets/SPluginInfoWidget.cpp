@@ -3,6 +3,8 @@
 #include "Widgets/SPluginInfoWidget.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -103,15 +105,31 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
     }
 
     DependenciesBox->ClearChildren();
+    const FString DescriptorPath = CurrentPlugin->GetDescriptorFileName();
+    const FString DescriptorFile = DescriptorPath.IsEmpty() ? TEXT("Unknown") : FPaths::GetCleanFilename(DescriptorPath);
     for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
     {
-        if (Ref.bEnabled)
+        if (!Ref.bEnabled)
         {
-            DependenciesBox->AddSlot().AutoHeight()
+            continue;
+        }
+
+        DependenciesBox->AddSlot().AutoHeight().Padding(0.f, 2.f)
+        [
+            SNew(SVerticalBox)
+            + SVerticalBox::Slot().AutoHeight()
             [
                 SNew(STextBlock).Text(FText::FromString(Ref.Name))
-            ];
-        }
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(STextBlock)
+                .Text(FText::FromString(FString::Printf(TEXT("Declared in %s"), *DescriptorFile)))
+                .ToolTipText(FText::FromString(DescriptorPath))
+                .ColorAndOpacity(FLinearColor(0.65f, 0.65f, 0.65f))
+                .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+            ]
+        ];
     }
 }
 
@@ -122,4 +140,3 @@ void SPluginInfoWidget::OnDocsClicked() const
         FPlatformProcess::LaunchURL(*DocsURL, nullptr, nullptr);
     }
 }
-
