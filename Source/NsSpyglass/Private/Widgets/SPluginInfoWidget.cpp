@@ -3,12 +3,61 @@
 #include "Widgets/SPluginInfoWidget.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/STextBlock.h"
+
+namespace
+{
+    TArray<FString> FindDependencyReferences(const TSharedPtr<IPlugin>& SourcePlugin, const TSharedPtr<IPlugin>& DependencyPlugin)
+    {
+        TArray<FString> Matches;
+        if (!SourcePlugin || !DependencyPlugin)
+        {
+            return Matches;
+        }
+
+        TSet<FString> DependencyModules;
+        const FPluginDescriptor& DepDesc = DependencyPlugin->GetDescriptor();
+        for (const FModuleDescriptor& Mod : DepDesc.Modules)
+        {
+            DependencyModules.Add(Mod.Name.ToString());
+        }
+
+        const FPluginDescriptor& SourceDesc = SourcePlugin->GetDescriptor();
+        const FString SourceDir = SourcePlugin->GetBaseDir();
+        for (const FModuleDescriptor& Mod : SourceDesc.Modules)
+        {
+            const FString BuildFile = FPaths::Combine(SourceDir, TEXT("Source"), Mod.Name.ToString(), FString::Printf(TEXT("%s.Build.cs"), *Mod.Name.ToString()));
+            FString Contents;
+            if (!FFileHelper::LoadFileToString(Contents, *BuildFile))
+            {
+                continue;
+            }
+
+            bool bFound = false;
+            for (const FString& DepModule : DependencyModules)
+            {
+                if (Contents.Contains(DepModule))
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+
+            if (bFound)
+            {
+                Matches.Add(BuildFile);
+            }
+        }
+
+        return Matches;
+    }
+}
 
 void SPluginInfoWidget::Construct(const FArguments& InArgs)
 {
@@ -105,14 +154,25 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
     }
 
     DependenciesBox->ClearChildren();
-    const FString DescriptorPath = CurrentPlugin->GetDescriptorFileName();
-    const FString DescriptorFile = DescriptorPath.IsEmpty() ? TEXT("Unknown") : FPaths::GetCleanFilename(DescriptorPath);
     for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
     {
         if (!Ref.bEnabled)
         {
             continue;
         }
+
+        const TSharedPtr<IPlugin> DependencyPlugin = IPluginManager::Get().FindPlugin(Ref.Name);
+        const TArray<FString> References = FindDependencyReferences(CurrentPlugin, DependencyPlugin);
+        TArray<FString> ReferenceNames;
+        ReferenceNames.Reserve(References.Num());
+        for (const FString& Reference : References)
+        {
+            ReferenceNames.Add(FPaths::GetCleanFilename(Reference));
+        }
+
+        const FString ReferenceText = ReferenceNames.Num() > 0
+            ? FString::Join(ReferenceNames, TEXT(", "))
+            : TEXT("Not found in module Build.cs files");
 
         DependenciesBox->AddSlot().AutoHeight().Padding(0.f, 2.f)
         [
@@ -124,8 +184,8 @@ void SPluginInfoWidget::SetPlugin(TSharedPtr<IPlugin> InPlugin)
             + SVerticalBox::Slot().AutoHeight()
             [
                 SNew(STextBlock)
-                .Text(FText::FromString(FString::Printf(TEXT("Declared in %s"), *DescriptorFile)))
-                .ToolTipText(FText::FromString(DescriptorPath))
+                .Text(FText::FromString(FString::Printf(TEXT("Referenced in %s"), *ReferenceText)))
+                .ToolTipText(FText::FromString(References.Num() > 0 ? FString::Join(References, TEXT("\n")) : ReferenceText))
                 .ColorAndOpacity(FLinearColor(0.65f, 0.65f, 0.65f))
                 .Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
             ]
