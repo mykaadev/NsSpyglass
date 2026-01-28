@@ -40,4 +40,20 @@ public:
     /** Attraction Scale between nodes */
     UPROPERTY(EditAnywhere, Config, Category="Layout")
     float AttractionScale;
+
+    /** Whether to show engine plugins in the graph. */
+    UPROPERTY(EditAnywhere, Config, Category="Filters")
+    bool bShowEnginePlugins;
+
+    /** Whether to show project plugins in the graph. */
+    UPROPERTY(EditAnywhere, Config, Category="Filters")
+    bool bShowProjectPlugins;
+
+    /** Whether to show disabled plugins in the graph. */
+    UPROPERTY(EditAnywhere, Config, Category="Filters")
+    bool bShowDisabledPlugins;
+
+    /** Whether to color nodes by transitive dependency impact. */
+    UPROPERTY(EditAnywhere, Config, Category="Filters")
+    bool bEnableImpactHeatmap;
 };

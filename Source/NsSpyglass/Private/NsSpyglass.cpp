@@ -135,6 +135,102 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
                     NsSpyglassSettings->SaveConfig();
                 })
             ]
+            + SVerticalBox::Slot().AutoHeight().Padding(FMargin(0, 8, 0, 0))
+            [
+                SNew(STextBlock).Text(FText::FromString("Filters"))
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([]()
+                {
+                    return UNsSpyglassSettings::GetSettings()->bShowEnginePlugins ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([GraphWidget](ECheckBoxState NewState)
+                {
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+
+                    NsSpyglassSettings->bShowEnginePlugins = (NewState == ECheckBoxState::Checked);
+                    NsSpyglassSettings->SaveConfig();
+                    if (GraphWidget.IsValid())
+                    {
+                        GraphWidget->RebuildGraph();
+                    }
+                })
+                [
+                    SNew(STextBlock).Text(FText::FromString("Show Engine Plugins"))
+                ]
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([]()
+                {
+                    return UNsSpyglassSettings::GetSettings()->bShowProjectPlugins ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([GraphWidget](ECheckBoxState NewState)
+                {
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+
+                    NsSpyglassSettings->bShowProjectPlugins = (NewState == ECheckBoxState::Checked);
+                    NsSpyglassSettings->SaveConfig();
+                    if (GraphWidget.IsValid())
+                    {
+                        GraphWidget->RebuildGraph();
+                    }
+                })
+                [
+                    SNew(STextBlock).Text(FText::FromString("Show Project Plugins"))
+                ]
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([]()
+                {
+                    return UNsSpyglassSettings::GetSettings()->bShowDisabledPlugins ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([GraphWidget](ECheckBoxState NewState)
+                {
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+
+                    NsSpyglassSettings->bShowDisabledPlugins = (NewState == ECheckBoxState::Checked);
+                    NsSpyglassSettings->SaveConfig();
+                    if (GraphWidget.IsValid())
+                    {
+                        GraphWidget->RebuildGraph();
+                    }
+                })
+                [
+                    SNew(STextBlock).Text(FText::FromString("Show Disabled Plugins"))
+                ]
+            ]
+            + SVerticalBox::Slot().AutoHeight()
+            [
+                SNew(SCheckBox)
+                .IsChecked_Lambda([]()
+                {
+                    return UNsSpyglassSettings::GetSettings()->bEnableImpactHeatmap ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+                })
+                .OnCheckStateChanged_Lambda([GraphWidget](ECheckBoxState NewState)
+                {
+                    UNsSpyglassSettings* NsSpyglassSettings = GetMutableDefault<UNsSpyglassSettings>();
+                    check(NsSpyglassSettings);
+
+                    NsSpyglassSettings->bEnableImpactHeatmap = (NewState == ECheckBoxState::Checked);
+                    NsSpyglassSettings->SaveConfig();
+                    if (GraphWidget.IsValid())
+                    {
+                        GraphWidget->RebuildGraph();
+                    }
+                })
+                [
+                    SNew(STextBlock).Text(FText::FromString("Impact Heatmap"))
+                ]
+            ]
             + SVerticalBox::Slot().AutoHeight()
            [
                SAssignNew(InfoWidget, SPluginInfoWidget)
@@ -145,6 +241,7 @@ TSharedRef<SDockTab> FNsSpyglassModule::OnSpawnPluginTab(const FSpawnTabArgs& Ar
     if (GraphWidget.IsValid() && InfoWidget.IsValid())
     {
         GraphWidget->SetOnNodeHovered(SNsSpyglassGraphWidget::FOnNodeHovered::CreateSP(InfoWidget.Get(), &SPluginInfoWidget::SetPlugin));
+        GraphWidget->SetOnNodePinned(SNsSpyglassGraphWidget::FOnNodePinned::CreateSP(InfoWidget.Get(), &SPluginInfoWidget::SetPlugin));
     }
 
     return Tab;

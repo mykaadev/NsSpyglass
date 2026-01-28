@@ -54,7 +54,10 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     Nodes.Reset();
     RootIndex = INDEX_NONE;
 
-    const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetEnabledPlugins();
+    const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
+    const TArray<TSharedRef<IPlugin>>& Plugins = IPluginManager::Get().GetDiscoveredPlugins();
+    TArray<TSharedRef<IPlugin>> FilteredPlugins;
+    FilteredPlugins.Reserve(Plugins.Num());
 
     TMap<FString, int32> NameToIndex;
     TMap<FString, FLinearColor> CategoryColors;
@@ -62,10 +65,26 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
     // Create nodes for plugins
     for (const TSharedRef<IPlugin>& Plugin : Plugins)
     {
+        const bool bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
+        const bool bIsEnabled = Plugin->IsEnabled();
+        if (bIsEngine && !Settings->bShowEnginePlugins)
+        {
+            continue;
+        }
+        if (!bIsEngine && !Settings->bShowProjectPlugins)
+        {
+            continue;
+        }
+        if (!bIsEnabled && !Settings->bShowDisabledPlugins)
+        {
+            continue;
+        }
+
         FPluginNode Node;
         Node.Name = Plugin->GetName();
         Node.Plugin = Plugin;
-        Node.bIsEngine = Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine;
+        Node.bIsEngine = bIsEngine;
+        Node.bIsEnabled = bIsEnabled;
         Node.Position = FVector2D::ZeroVector;
         Node.bFixed = false;
 
@@ -87,12 +106,13 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
 
         int32 Idx = Nodes.Add(Node);
         NameToIndex.Add(Node.Name, Idx);
+        FilteredPlugins.Add(Plugin);
     }
 
     // Fill in links
     for (int32 i = 0; i < Nodes.Num(); ++i)
     {
-        const TSharedRef<IPlugin>& Plugin = Plugins[i];
+        const TSharedRef<IPlugin>& Plugin = FilteredPlugins[i];
         const FPluginDescriptor& Desc = Plugin->GetDescriptor();
         for (const FPluginReferenceDescriptor& Ref : Desc.Plugins)
         {
@@ -108,6 +128,33 @@ void SNsSpyglassGraphWidget::BuildNodes(const FVector2D& ViewSize) const
                     Nodes[*DepIdx].Dependents.AddUnique(i);
                 }
             }
+        }
+    }
+
+    int32 MaxImpact = 0;
+    for (int32 i = 0; i < Nodes.Num(); ++i)
+    {
+        TSet<int32> Visited;
+        TArray<int32> Stack = Nodes[i].Dependencies;
+        while (Stack.Num() > 0)
+        {
+            const int32 Current = Stack.Pop();
+            if (Visited.Contains(Current))
+            {
+                continue;
+            }
+            Visited.Add(Current);
+            Stack.Append(Nodes[Current].Dependencies);
+        }
+        MaxImpact = FMath::Max(MaxImpact, Visited.Num());
+        Nodes[i].ImpactStrength = static_cast<float>(Visited.Num());
+    }
+
+    if (MaxImpact > 0)
+    {
+        for (FPluginNode& Node : Nodes)
+        {
+            Node.ImpactStrength /= static_cast<float>(MaxImpact);
         }
     }
 
@@ -199,10 +246,11 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
     TSet<int32> Downstream;
     TSet<int32> Upstream;
 
-    if (HoveredNode != INDEX_NONE)
+    const int32 ActiveNode = (PinnedNode != INDEX_NONE) ? PinnedNode : HoveredNode;
+    if (ActiveNode != INDEX_NONE)
     {
         // Downstream dependencies
-        TArray<int32> Stack = Nodes[HoveredNode].Dependencies;
+        TArray<int32> Stack = Nodes[ActiveNode].Dependencies;
         TSet<int32> Visited;
         for (int32 Dep : Stack)
         {
@@ -224,7 +272,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         }
 
         // Upstream dependents
-        Stack = Nodes[HoveredNode].Dependents;
+        Stack = Nodes[ActiveNode].Dependents;
         Visited.Empty();
         for (int32 Dep : Stack)
         {
@@ -245,7 +293,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             }
         }
 
-        Downstream.Add(HoveredNode);
+        Downstream.Add(ActiveNode);
     }
 
     TSet<int32> Highlight = Downstream;
@@ -289,7 +337,7 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             const FVector2D Start = NodePos + Dir * NodeRadius;
             const FVector2D End = DepPos - Dir * DepRadius;
 
-            const bool bHighlighted = HoveredNode != INDEX_NONE && Highlight.Contains(i) && Highlight.Contains(Link);
+            const bool bHighlighted = ActiveNode != INDEX_NONE && Highlight.Contains(i) && Highlight.Contains(Link);
 
             FLinearColor LineColor = FLinearColor::Gray;
             float Thickness = 1.f;
@@ -346,7 +394,13 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
         const float Size = BaseSize * ZoomScale * FMath::Lerp(0.2f, 1.f, Ease);
         FVector2D DrawPos = Center + ViewOffset + Node.Position * ZoomAmount - FVector2D(Size * 0.5f, Size * 0.5f);
 
+        const UNsSpyglassSettings* Settings = UNsSpyglassSettings::GetSettings();
         FLinearColor BoxColor = Node.Color;
+        if (Settings->bEnableImpactHeatmap)
+        {
+            const FLinearColor HeatTarget(1.f, 0.2f, 0.2f, BoxColor.A);
+            BoxColor = FLinearColor::LerpUsingHSV(BoxColor, HeatTarget, Node.ImpactStrength);
+        }
 
         if (Node.bIsEngine && Node.Name != TEXT("Root"))
         {
@@ -354,17 +408,22 @@ int32 SNsSpyglassGraphWidget::OnPaint(const FPaintArgs& Args, const FGeometry& A
             LerpColor.A = BoxColor.A;
             BoxColor = LerpColor;
         }
+        if (!Node.bIsEnabled)
+        {
+            BoxColor.A *= 0.4f;
+        }
+        const float BaseAlpha = Settings->bEnableImpactHeatmap ? 0.18f : 0.05f;
         if (Downstream.Contains(i))
         {
-            BoxColor.A = 0.2f;
+            BoxColor.A = Settings->bEnableImpactHeatmap ? 0.35f : 0.2f;
         }
         else if (Upstream.Contains(i))
         {
-            BoxColor.A = 0.1f;
+            BoxColor.A = Settings->bEnableImpactHeatmap ? 0.22f : 0.1f;
         }
         else
         {
-            BoxColor.A = 0.05f;
+            BoxColor.A = BaseAlpha;
         }
 
         const bool bOutlined = Highlight.Contains(i);
@@ -481,6 +540,9 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonDown(const FGeometry& MyGeometry, co
             Nodes[Hit].bFixed = true;
             Nodes[Hit].Velocity = FVector2D::ZeroVector;
             LastMousePos = LocalPos;
+            DragStartPos = LocalPos;
+            bPendingPinClick = true;
+            bHasDragged = false;
             return FReply::Handled().CaptureMouse(SharedThis(this));
         }
 
@@ -502,11 +564,38 @@ FReply SNsSpyglassGraphWidget::OnMouseButtonUp(const FGeometry& MyGeometry, cons
 {
     if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
+        const FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+        const int32 Hit = HitTestNode(LocalPos, MyGeometry.GetLocalSize());
         if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
         {
             Nodes[DraggedNode].bFixed = false;
             Nodes[DraggedNode].Velocity = FVector2D::ZeroVector;
         }
+
+        if (bPendingPinClick && !bHasDragged && Hit != INDEX_NONE)
+        {
+            if (PinnedNode == Hit)
+            {
+                PinnedNode = INDEX_NONE;
+                OnNodePinned.ExecuteIfBound(nullptr);
+                if (HoveredNode != INDEX_NONE)
+                {
+                    OnNodeHovered.ExecuteIfBound(Nodes[HoveredNode].Plugin);
+                }
+                else
+                {
+                    OnNodeHovered.ExecuteIfBound(nullptr);
+                }
+            }
+            else
+            {
+                PinnedNode = Hit;
+                OnNodePinned.ExecuteIfBound(Nodes[Hit].Plugin);
+            }
+        }
+
+        bPendingPinClick = false;
+        bHasDragged = false;
         bIsDragging = false;
         DraggedNode = INDEX_NONE;
         bIsPanning = false;
@@ -527,6 +616,11 @@ FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FP
 
     if (bIsDragging && Nodes.IsValidIndex(DraggedNode))
     {
+        if (!bHasDragged && (LocalPos - DragStartPos).SizeSquared() > 9.f)
+        {
+            bHasDragged = true;
+            bPendingPinClick = false;
+        }
         const FVector2D Delta = (LocalPos - LastMousePos) / ZoomAmount;
         Nodes[DraggedNode].Position += Delta;
         LastMousePos = LocalPos;
@@ -547,12 +641,18 @@ FReply SNsSpyglassGraphWidget::OnMouseMove(const FGeometry& MyGeometry, const FP
         if (HoveredNode != INDEX_NONE)
         {
             SetToolTipText(FText::FromString(Nodes[HoveredNode].Name));
-            OnNodeHovered.ExecuteIfBound(Nodes[HoveredNode].Plugin);
+            if (PinnedNode == INDEX_NONE)
+            {
+                OnNodeHovered.ExecuteIfBound(Nodes[HoveredNode].Plugin);
+            }
         }
         else
         {
             SetToolTipText(FText());
-            OnNodeHovered.ExecuteIfBound(nullptr);
+            if (PinnedNode == INDEX_NONE)
+            {
+                OnNodeHovered.ExecuteIfBound(nullptr);
+            }
         }
     }
 
@@ -584,11 +684,18 @@ void SNsSpyglassGraphWidget::RebuildGraph()
 {
     BuildNodes(FVector2D(960.f, 540.f));
     RecenterView();
+    PinnedNode = INDEX_NONE;
+    OnNodePinned.ExecuteIfBound(nullptr);
 }
 
 void SNsSpyglassGraphWidget::SetOnNodeHovered(FOnNodeHovered InDelegate)
 {
     OnNodeHovered = InDelegate;
+}
+
+void SNsSpyglassGraphWidget::SetOnNodePinned(FOnNodePinned InDelegate)
+{
+    OnNodePinned = InDelegate;
 }
 
 void SNsSpyglassGraphWidget::RunForceAtlas2Step(TArray<FPluginNode>& InNodes, int32 InRootIndex, float Repulsion, float Gravity, float DeltaTime)
@@ -763,4 +870,3 @@ void SNsSpyglassGraphWidget::Tick(const FGeometry& AllottedGeometry, const doubl
         }
     }
 }
-

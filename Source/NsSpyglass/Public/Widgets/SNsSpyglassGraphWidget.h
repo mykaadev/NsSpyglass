@@ -29,8 +29,14 @@ struct FPluginNode
     /** Whether this plugin comes from the engine. */
     bool bIsEngine = false;
 
+    /** Whether this plugin is enabled. */
+    bool bIsEnabled = true;
+
     /** Color assigned to this node's group. */
     FLinearColor Color = FLinearColor(1.f, 1.f, 1.f, 0.1f);
+
+    /** Normalized impact value based on transitive dependency count. */
+    float ImpactStrength = 0.f;
 
     /** When true, the node will remain stationary during simulation. */
     bool bFixed = false;
@@ -84,8 +90,14 @@ public:
     /** Delegate fired when the hovered node changes. */
     DECLARE_DELEGATE_OneParam(FOnNodeHovered, TSharedPtr<IPlugin>);
 
+    /** Delegate fired when the pinned node changes. */
+    DECLARE_DELEGATE_OneParam(FOnNodePinned, TSharedPtr<IPlugin>);
+
     /** Register a callback for hover events. */
     void SetOnNodeHovered(FOnNodeHovered InDelegate);
+
+    /** Register a callback for pin events. */
+    void SetOnNodePinned(FOnNodePinned InDelegate);
 
     //~ Begin SCompoundWidget Interface
     virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -147,11 +159,26 @@ private:
     /** Index of the node currently hovered by the mouse. */
     mutable int32 HoveredNode = INDEX_NONE;
 
+    /** Index of the node currently pinned. */
+    mutable int32 PinnedNode = INDEX_NONE;
+
+    /** Whether a click is eligible to toggle pinning. */
+    mutable bool bPendingPinClick = false;
+
+    /** True when the drag threshold has been exceeded. */
+    mutable bool bHasDragged = false;
+
+    /** Drag start position for click detection. */
+    mutable FVector2D DragStartPos = FVector2D::ZeroVector;
+
     /** Index of the root node in the Nodes array. */
     mutable int32 RootIndex = INDEX_NONE;
 
     /** Delegate for hover updates. */
     FOnNodeHovered OnNodeHovered;
+
+    /** Delegate for pin updates. */
+    FOnNodePinned OnNodePinned;
 
     /** Background stars shown behind the graph. */
     mutable TArray<FBackgroundStar> Stars;
@@ -171,4 +198,3 @@ private:
     /** intro node fade duration */
     float IntroFade = 0.25f;
 };
-
